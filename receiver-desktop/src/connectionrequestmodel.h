@@ -50,6 +50,7 @@ public:
     // A second request from the same device replaces the first.
     void add(const ConnectionRequest &request);
     std::optional<ConnectionRequest> find(const QString &requestId) const;
+    Q_INVOKABLE QString deviceNameAt(int row) const;
     std::optional<ConnectionRequest> take(const QString &requestId);
     QList<ConnectionRequest> takeExpired(const QDateTime &now);
     void refreshCountdowns();

@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Concurrent Multimedia Network Svg)
+find_package(Qt6 REQUIRED COMPONENTS Concurrent Multimedia Network Svg Widgets)
 
 # H.264 decoding and MP4 recording use the FFmpeg that ships with Qt Multimedia, so the
 # receiver deploys with nothing extra. Qt doesn't ship its headers; the
@@ -42,6 +42,7 @@ qt_add_qml_module(beamr_receiver_ui
         src/castscreen.h src/castscreen.cpp
         src/connectionrequestmodel.h src/connectionrequestmodel.cpp
         src/controlserver.h src/controlserver.cpp
+        src/desktopintegration.h src/desktopintegration.cpp
         src/discoveryresponder.h src/discoveryresponder.cpp
         src/qrcodeitem.h src/qrcodeitem.cpp
         src/recorder.h src/recorder.cpp
@@ -105,6 +106,7 @@ target_link_libraries(beamr_receiver_ui PUBLIC
     Qt6::Network
     Qt6::Qml
     Qt6::Quick
+    Qt6::Widgets
 )
 
 qt_add_executable(beamr_receiver

@@ -57,6 +57,11 @@ void ConnectionRequestModel::add(const ConnectionRequest &request)
     emit countChanged();
 }
 
+QString ConnectionRequestModel::deviceNameAt(int row) const
+{
+    return row >= 0 && row < m_requests.size() ? m_requests.at(row).device.name : QString();
+}
+
 std::optional<ConnectionRequest> ConnectionRequestModel::find(const QString &requestId) const
 {
     for (const ConnectionRequest &request : m_requests) {

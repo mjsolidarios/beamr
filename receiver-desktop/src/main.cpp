@@ -1,4 +1,4 @@
-#include <QGuiApplication>
+#include <QApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QtQml/QQmlExtensionPlugin>
@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
 {
     beamr::installLogPattern();
 
-    QGuiApplication app(argc, argv);
+    // QApplication rather than QGuiApplication: the tray icon uses widgets.
+    QApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("beamr-receiver"));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("beamr"));
     QGuiApplication::setOrganizationName(QStringLiteral("beamr"));

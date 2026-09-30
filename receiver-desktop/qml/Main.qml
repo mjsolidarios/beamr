@@ -45,7 +45,8 @@ ApplicationWindow {
     height: 760
     minimumWidth: 760
     minimumHeight: 540
-    visible: true
+    // Started at sign-in: stay in the tray until wanted.
+    visible: !DesktopIntegration.startHidden
     title: ReceiverController.castingCount > 1 ? qsTr("beamr · %1 phones").arg(ReceiverController.castingCount)
          : casting ? qsTr("beamr · %1").arg(screens.find(s => s.casting)?.deviceName ?? "")
          : "beamr"
@@ -73,6 +74,38 @@ ApplicationWindow {
     onCastingChanged: {
         if (!casting && fullScreen)
             showNormal()
+    }
+
+    property bool toldAboutTray: false
+
+    function bringToFront() {
+        if (visibility === Window.Hidden || visibility === Window.Minimized)
+            showNormal()
+        raise()
+        requestActivate()
+    }
+
+    // Closing keeps beamr reachable from the tray (unless turned off).
+    onClosing: close => {
+        if (DesktopIntegration.trayAvailable && DesktopIntegration.keepRunning) {
+            close.accepted = false
+            hide()
+            if (!toldAboutTray) {
+                toldAboutTray = true
+                DesktopIntegration.notify(qsTr("beamr is still running"),
+                                          qsTr("Phones can still connect. Open it or quit from the tray icon."))
+            }
+        } else {
+            DesktopIntegration.quit()
+        }
+    }
+
+    Connections {
+        target: DesktopIntegration
+
+        function onShowRequested() {
+            window.bringToFront()
+        }
     }
     // Back to the grid when there's nothing left to single out.
     onScreensChanged: {
@@ -261,8 +294,15 @@ ApplicationWindow {
 
         function onCountChanged() {
             const count = ReceiverController.requests.count
-            if (count > window.lastRequestCount)
+            if (count > window.lastRequestCount) {
                 window.alert(0)
+                // Out of sight: say so where it'll be seen.
+                if (!window.visible || window.visibility === Window.Minimized || !window.active) {
+                    const name = ReceiverController.requests.deviceNameAt(count - 1)
+                    DesktopIntegration.notify(qsTr("%1 wants to cast").arg(name),
+                                              qsTr("Open beamr to allow or decline."))
+                }
+            }
             window.lastRequestCount = count
         }
     }

@@ -234,6 +234,84 @@ Dialog {
 
             ColumnLayout {
                 Layout.fillWidth: true
+                spacing: 10
+
+                SectionLabel {
+                    text: qsTr("Running")
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: DesktopIntegration.trayAvailable
+                    spacing: 16
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Label {
+                            text: qsTr("Keep running when the window is closed")
+                            color: Theme.text
+                            font.pixelSize: 15
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("beamr stays in the tray so phones can still connect.")
+                            color: Theme.textMuted
+                            font.pixelSize: 13
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
+                    Switch {
+                        checked: DesktopIntegration.keepRunning
+                        palette.dark: Theme.accent
+                        palette.window: Theme.text
+                        focusPolicy: Qt.TabFocus
+                        onToggled: DesktopIntegration.keepRunning = checked
+                        Accessible.name: qsTr("Keep running when the window is closed")
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 16
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Label {
+                            text: qsTr("Start when I sign in")
+                            color: Theme.text
+                            font.pixelSize: 15
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: DesktopIntegration.trayAvailable
+                                  ? qsTr("Opens quietly in the tray, ready for phones.")
+                                  : qsTr("Opens beamr when you sign in to this computer.")
+                            color: Theme.textMuted
+                            font.pixelSize: 13
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
+                    Switch {
+                        checked: DesktopIntegration.launchAtLogin
+                        palette.dark: Theme.accent
+                        palette.window: Theme.text
+                        focusPolicy: Qt.TabFocus
+                        onToggled: DesktopIntegration.launchAtLogin = checked
+                        Accessible.name: qsTr("Start when I sign in")
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
                 spacing: 6
 
                 SectionLabel {
