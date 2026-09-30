@@ -74,7 +74,7 @@ Rectangle {
                             : root.castState === SenderController.Starting ? qsTr("Starting")
                             : qsTr("Ready")
                         color: root.live ? Theme.success : Theme.accent
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.sp(12)
                         font.weight: Font.DemiBold
                         font.capitalization: Font.AllUppercase
                         font.letterSpacing: 1.2
@@ -91,7 +91,7 @@ Rectangle {
                         : root.receivers === 1 ? qsTr("Cast to 1 receiver")
                         : qsTr("Cast to %1 receivers").arg(root.receivers)
                     color: Theme.text
-                    font.pixelSize: 18
+                    font.pixelSize: Theme.sp(18)
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -107,7 +107,7 @@ Rectangle {
                     ? qsTr("In the dialog that opens, share your entire screen or just one app, then allow it.")
                     : qsTr("Your screen shows on every receiver below that allowed this phone.")
             color: Theme.textMuted
-            font.pixelSize: 14
+            font.pixelSize: Theme.sp(14)
             lineHeight: 1.15
             wrapMode: Text.Wrap
         }
@@ -122,7 +122,7 @@ Rectangle {
                 return SenderController.audioState === "on" ? qsTr("%1 · with sound").arg(size) : size
             }
             color: Theme.textFaint
-            font.pixelSize: 13
+            font.pixelSize: Theme.sp(13)
             font.features: { "tnum": 1 }
         }
 
@@ -136,7 +136,7 @@ Rectangle {
                   ? qsTr("No sound: beamr needs permission to record audio. Allow it in Android settings, then cast again.")
                   : qsTr("This phone can't cast sound, so only the picture is shared.")
             color: Theme.textMuted
-            font.pixelSize: 13
+            font.pixelSize: Theme.sp(13)
             wrapMode: Text.Wrap
         }
 

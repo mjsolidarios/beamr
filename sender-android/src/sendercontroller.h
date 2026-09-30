@@ -49,6 +49,9 @@ class SenderController : public QObject
     Q_PROPERTY(bool canScan READ canScan CONSTANT)
     // The first-launch introduction has been seen (or skipped).
     Q_PROPERTY(bool onboardingDone READ onboardingDone WRITE setOnboardingDone NOTIFY onboardingDoneChanged)
+    // Android's text size setting (Settings > Display > Font size), so text
+    // grows for people who need it. Theme.sp() applies it.
+    Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)
     // For the About page: the Qt this build runs on.
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     // Cast what apps play, too. Takes effect on the next cast.
@@ -87,6 +90,7 @@ public:
     CastState castState() const { return m_castState; }
     bool canScan() const;
     QString qtVersion() const { return QString::fromLatin1(qVersion()); }
+    qreal fontScale() const { return m_fontScale; }
     bool onboardingDone() const { return m_onboardingDone; }
     void setOnboardingDone(bool done);
     Quality quality() const { return m_quality; }
@@ -145,6 +149,7 @@ signals:
     void shareAudioChanged();
     void qualityChanged();
     void onboardingDoneChanged();
+    void fontScaleChanged();
     void audioStateChanged();
 
 private:
@@ -153,6 +158,7 @@ private:
     void updateSystemBars();
     // From the Quick Settings tile: cast to the computer used last.
     void quickCast();
+    void refreshFontScale();
     void qrScanned(const QString &text);
     void qrScanFailed(const QString &reason);
     void onSessionApproved(ReceiverSession *session);
@@ -188,6 +194,7 @@ private:
     Quality m_quality = Smooth;
     Quality m_castQuality = Smooth;
     bool m_onboardingDone = false;
+    qreal m_fontScale = 1.0;
     QString m_audioState;
     QVariantList m_recent;
 };

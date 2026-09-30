@@ -78,7 +78,7 @@ Item {
         contentItem: Label {
             text: qsTr("Skip")
             color: Theme.textMuted
-            font.pixelSize: 16
+            font.pixelSize: Theme.sp(16)
             verticalAlignment: Text.AlignVCenter
         }
         background: Rectangle {
@@ -129,7 +129,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         text: page.modelData.title
                         color: Theme.text
-                        font.pixelSize: 28
+                        font.pixelSize: Theme.sp(28)
                         font.weight: Font.Bold
                         wrapMode: Text.Wrap
                     }
@@ -140,7 +140,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         text: page.modelData.body
                         color: Theme.textMuted
-                        font.pixelSize: 16
+                        font.pixelSize: Theme.sp(16)
                         lineHeight: 1.2
                         wrapMode: Text.Wrap
                     }
@@ -163,7 +163,7 @@ Item {
                             Label {
                                 text: qsTr("Get the desktop app")
                                 color: Theme.accent
-                                font.pixelSize: 16
+                                font.pixelSize: Theme.sp(16)
                                 font.weight: Font.DemiBold
                             }
 

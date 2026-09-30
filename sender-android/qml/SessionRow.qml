@@ -65,7 +65,7 @@ ItemDelegate {
                 Layout.fillWidth: true
                 text: root.name
                 color: Theme.text
-                font.pixelSize: 16
+                font.pixelSize: Theme.sp(16)
                 elide: Text.ElideRight
             }
 
@@ -101,7 +101,7 @@ ItemDelegate {
                         }
                     }
                     color: root.pending || root.streaming ? root.tone : Theme.textMuted
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.sp(13)
                     elide: Text.ElideRight
                 }
             }

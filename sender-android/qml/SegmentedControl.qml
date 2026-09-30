@@ -67,7 +67,7 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             text: segment.modelData.label
                             color: segment.selected ? Theme.accent : Theme.text
-                            font.pixelSize: 15
+                            font.pixelSize: Theme.sp(15)
                             font.weight: segment.selected ? Font.DemiBold : Font.Normal
                         }
                     }

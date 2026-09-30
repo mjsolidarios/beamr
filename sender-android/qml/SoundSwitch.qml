@@ -38,14 +38,14 @@ Switch {
             Label {
                 text: qsTr("Cast sound")
                 color: Theme.text
-                font.pixelSize: 15
+                font.pixelSize: Theme.sp(15)
             }
 
             Label {
                 Layout.fillWidth: true
                 text: qsTr("What apps play. Calls and apps that block it stay private.")
                 color: Theme.textMuted
-                font.pixelSize: 12
+                font.pixelSize: Theme.sp(12)
                 wrapMode: Text.Wrap
             }
         }

@@ -106,7 +106,7 @@ ApplicationWindow {
                 Label {
                     text: "beamr"
                     color: Theme.text
-                    font.pixelSize: 22
+                    font.pixelSize: Theme.sp(22)
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.3
                 }
@@ -187,7 +187,7 @@ ApplicationWindow {
             Label {
                 text: qsTr("Phone name")
                 color: Theme.text
-                font.pixelSize: 20
+                font.pixelSize: Theme.sp(20)
             }
 
             Label {
@@ -195,7 +195,7 @@ ApplicationWindow {
                 Layout.topMargin: 6
                 text: qsTr("The computer shows this name when you ask to cast.")
                 color: Theme.textMuted
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
                 wrapMode: Text.Wrap
             }
 
@@ -205,7 +205,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.topMargin: 18
                 color: Theme.text
-                font.pixelSize: 17
+                font.pixelSize: Theme.sp(17)
                 leftPadding: 14
                 maximumLength: 64
                 placeholderText: SenderController.deviceModel

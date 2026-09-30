@@ -47,7 +47,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: root.text
                 color: Theme.text
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
                 lineHeight: 1.15
                 wrapMode: Text.Wrap
             }
@@ -62,7 +62,7 @@ Rectangle {
                 leftPadding: 10
                 rightPadding: 10
                 text: root.actionText
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
                 font.weight: Font.DemiBold
                 onClicked: root.actionTriggered()
 

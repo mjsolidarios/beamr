@@ -58,7 +58,7 @@ ItemDelegate {
                 Layout.fillWidth: true
                 text: root.name
                 color: Theme.text
-                font.pixelSize: 16
+                font.pixelSize: Theme.sp(16)
                 elide: Text.ElideRight
             }
 
@@ -67,7 +67,7 @@ ItemDelegate {
                 visible: text.length > 0
                 text: root.detail.length > 0 ? root.detail : root.name !== root.address ? root.address : ""
                 color: Theme.textMuted
-                font.pixelSize: 13
+                font.pixelSize: Theme.sp(13)
                 font.family: root.detail.length > 0 ? Qt.application.font.family : Theme.monoFamily
                 elide: Text.ElideRight
             }
@@ -81,7 +81,7 @@ ItemDelegate {
             bottomPadding: 7
             text: qsTr("Connect")
             color: Theme.accent
-            font.pixelSize: 14
+            font.pixelSize: Theme.sp(14)
             font.weight: Font.DemiBold
 
             background: Rectangle {

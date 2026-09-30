@@ -36,7 +36,7 @@ Button {
         implicitHeight: 38
         radius: height / 2
         color: control.fillColor
-        border.width: control.kind === "secondary" || control.visualFocus ? 1 : 0
+        border.width: control.visualFocus ? 2 : control.kind === "secondary" ? 1 : 0
         border.color: control.visualFocus ? Theme.accent : Theme.border
 
         Rectangle {

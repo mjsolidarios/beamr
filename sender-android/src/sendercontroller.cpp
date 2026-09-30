@@ -217,9 +217,31 @@ SenderController::SenderController(QObject *parent)
 #ifdef Q_OS_ANDROID
     registerCaptureNatives();
     registerScanNatives();
+    // Text size can change in Android's settings while beamr is in the
+    // background; pick it up when it comes back.
+    refreshFontScale();
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive)
+            refreshFontScale();
+    });
     // The Quick Settings tile may have started the app.
     if (QJniObject::callStaticMethod<jboolean>("com/beamr/sender/CaptureBridge", "takePendingQuickCast"))
         QMetaObject::invokeMethod(this, &SenderController::quickCast, Qt::QueuedConnection);
+#endif
+}
+
+void SenderController::refreshFontScale()
+{
+#ifdef Q_OS_ANDROID
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    QJniObject configuration = context.callObjectMethod("getResources", "()Landroid/content/res/Resources;")
+                                   .callObjectMethod("getConfiguration", "()Landroid/content/res/Configuration;");
+    // Past about 1.6 the layouts can't hold; that's still a big step up.
+    const qreal scale = std::clamp<qreal>(configuration.getField<jfloat>("fontScale"), 0.85, 1.6);
+    if (!qFuzzyCompare(scale, m_fontScale)) {
+        m_fontScale = scale;
+        emit fontScaleChanged();
+    }
 #endif
 }
 

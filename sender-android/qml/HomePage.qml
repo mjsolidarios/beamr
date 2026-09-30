@@ -80,7 +80,7 @@ Flickable {
                 Layout.topMargin: 16
                 text: qsTr("Cast to your computers")
                 color: Theme.text
-                font.pixelSize: 30
+                font.pixelSize: Theme.sp(30)
                 font.weight: Font.Light
                 wrapMode: Text.Wrap
             }
@@ -93,7 +93,7 @@ Flickable {
                         ? qsTr("Open beamr on a computer and scan the QR code it shows.")
                         : qsTr("Open beamr on a computer and enter the address it shows.")
                 color: Theme.textMuted
-                font.pixelSize: 15
+                font.pixelSize: Theme.sp(15)
                 lineHeight: 1.15
                 wrapMode: Text.Wrap
             }
@@ -224,7 +224,7 @@ Flickable {
                 Layout.fillWidth: true
                 text: qsTr("Looking for computers running beamr on this Wi‑Fi…")
                 color: Theme.textMuted
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
                 wrapMode: Text.Wrap
             }
         }
@@ -293,7 +293,7 @@ Flickable {
                                     leftPadding: 6
                                     text: forgetItem.text
                                     color: Theme.danger
-                                    font.pixelSize: 15
+                                    font.pixelSize: Theme.sp(15)
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 background: Rectangle {
@@ -326,7 +326,7 @@ Flickable {
             visible: !SenderController.canAddReceiver
             text: qsTr("That's the most receivers at once. Remove one to add another.")
             color: Theme.textMuted
-            font.pixelSize: 14
+            font.pixelSize: Theme.sp(14)
             wrapMode: Text.Wrap
         }
 
@@ -348,7 +348,7 @@ Flickable {
                 placeholderText: "192.168.1.20"
                 placeholderTextColor: Theme.textFaint
                 color: Theme.text
-                font.pixelSize: 20
+                font.pixelSize: Theme.sp(20)
                 font.family: Theme.monoFamily
                 leftPadding: 18
                 rightPadding: clearButton.visible || scanButton.visible ? Theme.touchTarget + 6 : 18
@@ -431,7 +431,7 @@ Flickable {
                   ? addressField.error
                   : qsTr("Port %1 is used unless you add another, like 192.168.1.20:5000.").arg(SenderController.defaultPort)
             color: addressField.error.length > 0 ? Theme.danger : Theme.textFaint
-            font.pixelSize: 13
+            font.pixelSize: Theme.sp(13)
             wrapMode: Text.Wrap
         }
 
@@ -462,7 +462,7 @@ Flickable {
                 Layout.fillWidth: true
                 text: qsTr("Your phone and the computers need to be on the same Wi-Fi network.")
                 color: Theme.textFaint
-                font.pixelSize: 13
+                font.pixelSize: Theme.sp(13)
                 wrapMode: Text.Wrap
             }
         }

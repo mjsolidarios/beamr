@@ -68,7 +68,7 @@ Drawer {
                 Layout.topMargin: 18
                 text: qsTr("Settings")
                 color: Theme.text
-                font.pixelSize: 22
+                font.pixelSize: Theme.sp(22)
                 font.weight: Font.DemiBold
             }
 
@@ -120,7 +120,7 @@ Drawer {
                     }
                 }
                 color: Theme.textMuted
-                font.pixelSize: 13
+                font.pixelSize: Theme.sp(13)
                 wrapMode: Text.Wrap
             }
 
@@ -142,7 +142,7 @@ Drawer {
                 visible: SenderController.castState === SenderController.On
                 text: qsTr("Quality and sound changes apply the next time you start casting.")
                 color: Theme.textFaint
-                font.pixelSize: 12
+                font.pixelSize: Theme.sp(12)
                 wrapMode: Text.Wrap
             }
 
@@ -187,14 +187,14 @@ Drawer {
                         Label {
                             text: qsTr("Computers see it as")
                             color: Theme.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.sp(12)
                         }
 
                         Label {
                             Layout.fillWidth: true
                             text: SenderController.deviceName
                             color: Theme.text
-                            font.pixelSize: 15
+                            font.pixelSize: Theme.sp(15)
                             elide: Text.ElideRight
                         }
                     }
@@ -244,13 +244,13 @@ Drawer {
                         Label {
                             text: qsTr("About beamr")
                             color: Theme.text
-                            font.pixelSize: 15
+                            font.pixelSize: Theme.sp(15)
                         }
 
                         Label {
                             text: qsTr("Version %1 · open source").arg(root.appVersion)
                             color: Theme.textMuted
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.sp(12)
                         }
                     }
 

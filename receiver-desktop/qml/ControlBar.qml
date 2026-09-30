@@ -40,6 +40,8 @@ Rectangle {
         spacing: 4
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: root.screen.paused ? "play" : "pause"
             tip: root.screen.paused ? qsTr("Resume (Space)") : qsTr("Pause (Space)")
             checked: root.screen.paused
@@ -47,6 +49,8 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: "record"
             tint: root.screen.recording ? Theme.record : Theme.text
             text: root.screen.recording ? Theme.formatDuration(root.screen.recordingSeconds) : ""
@@ -57,6 +61,7 @@ Rectangle {
 
         // One phone's sound plays at a time; this picks (or silences) it.
         IconButton {
+            focusPolicy: Qt.NoFocus
             visible: root.screen.hasAudio
             iconName: root.screen.audible ? "volume-2" : "volume-x"
             tint: root.screen.audible ? Theme.text : Theme.textMuted
@@ -109,6 +114,8 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: "camera"
             tip: qsTr("Screenshot (S)")
             onClicked: root.screenshotRequested()
@@ -122,12 +129,16 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: root.fill ? "scan" : "crop"
             tip: root.fill ? qsTr("Show the whole picture") : qsTr("Fill the space (crops the edges)")
             onClicked: root.fillToggled()
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: "pop-out"
             checked: root.poppedOut
             tip: root.poppedOut ? qsTr("Bring back into this window") : qsTr("Open in its own window")
@@ -135,6 +146,8 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             visible: root.multiScreen
             iconName: root.focused ? "layout-grid" : "focus"
             tip: root.focused ? qsTr("Show all screens") : qsTr("Show only this screen")
@@ -142,6 +155,8 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: root.fullScreen ? "minimize" : "maximize"
             tip: root.fullScreen ? qsTr("Exit fullscreen (F11)") : qsTr("Fullscreen (F11)")
             onClicked: root.fullScreenRequested()
@@ -155,6 +170,8 @@ Rectangle {
         }
 
         IconButton {
+
+            focusPolicy: Qt.NoFocus
             iconName: "x"
             text: qsTr("Stop")
             tint: Theme.danger

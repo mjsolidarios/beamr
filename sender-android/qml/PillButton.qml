@@ -17,7 +17,7 @@ Button {
 
     leftPadding: 24
     rightPadding: 24
-    font.pixelSize: 16
+    font.pixelSize: Theme.sp(16)
     font.weight: Font.DemiBold
     opacity: enabled ? 1 : 0.4
     // Press feedback lands on press-in.

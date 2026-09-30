@@ -71,7 +71,7 @@ Item {
                     Layout.fillWidth: true
                     text: row.title
                     color: Theme.text
-                    font.pixelSize: 16
+                    font.pixelSize: Theme.sp(16)
                     elide: Text.ElideRight
                 }
 
@@ -80,7 +80,7 @@ Item {
                     visible: row.subtitle.length > 0
                     text: row.subtitle
                     color: Theme.textMuted
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.sp(13)
                     elide: Text.ElideRight
                 }
             }
@@ -144,7 +144,7 @@ Item {
             Layout.fillWidth: true
             text: qsTr("About")
             color: Theme.text
-            font.pixelSize: 20
+            font.pixelSize: Theme.sp(20)
             font.weight: Font.DemiBold
         }
     }
@@ -184,7 +184,7 @@ Item {
                 Layout.topMargin: 16
                 text: "beamr"
                 color: Theme.text
-                font.pixelSize: 28
+                font.pixelSize: Theme.sp(28)
                 font.weight: Font.Bold
             }
 
@@ -193,7 +193,7 @@ Item {
                 Layout.topMargin: 2
                 text: qsTr("Version %1").arg(root.appVersion)
                 color: Theme.textMuted
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
             }
 
             Label {
@@ -202,7 +202,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 text: qsTr("Cast your phone's screen and sound to your computers over Wi-Fi.")
                 color: Theme.text
-                font.pixelSize: 15
+                font.pixelSize: Theme.sp(15)
                 lineHeight: 1.15
                 wrapMode: Text.Wrap
             }
@@ -251,7 +251,7 @@ Item {
                 text: qsTr("beamr is free and open source under the MIT license. It's built with Qt %1, "
                            + "used under the GNU LGPL v3, and developed in Qt Creator.").arg(SenderController.qtVersion)
                 color: Theme.textMuted
-                font.pixelSize: 14
+                font.pixelSize: Theme.sp(14)
                 lineHeight: 1.15
                 wrapMode: Text.Wrap
             }
@@ -273,7 +273,7 @@ Item {
                 Layout.topMargin: 24
                 text: qsTr("© 2026 Mark Joseph Solidarios")
                 color: Theme.textFaint
-                font.pixelSize: 12
+                font.pixelSize: Theme.sp(12)
             }
         }
     }

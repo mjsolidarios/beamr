@@ -36,4 +36,10 @@ QtObject {
     readonly property int gutter: 20
 
     readonly property string monoFamily: "monospace"
+
+    // Text sizes in pixels at normal size, scaled by Android's font size
+    // setting. Use for every font.pixelSize.
+    function sp(px) {
+        return Math.round(px * SenderController.fontScale)
+    }
 }
