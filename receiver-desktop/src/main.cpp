@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QTranslator>
 #include <QtQml/QQmlExtensionPlugin>
 
 #include <beamr/config.h>
@@ -21,6 +22,11 @@ int main(int argc, char *argv[])
     QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/beamr/beamr.png")));
     // Lets Wayland and X11 docks match the window to beamr.desktop.
     QGuiApplication::setDesktopFileName(QStringLiteral("beamr"));
+
+    // The phone's or computer's language, when beamr has been translated into it.
+    QTranslator translator;
+    if (translator.load(QLocale(), QStringLiteral("beamr_receiver"), QStringLiteral("_"), QStringLiteral(":/i18n")))
+        QCoreApplication::installTranslator(&translator);
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,

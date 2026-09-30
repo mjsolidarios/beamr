@@ -152,3 +152,12 @@ if(APPLE)
     target_sources(beamr_receiver PRIVATE platform/beamr.icns)
     set_source_files_properties(platform/beamr.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
+
+# Translations (see BEAMR_LANGUAGES in the top-level CMakeLists.txt).
+if(BEAMR_LANGUAGES)
+    qt_add_translations(beamr_receiver
+        TS_FILE_BASE beamr_receiver
+        TS_FILE_DIR i18n
+        SOURCE_TARGETS beamr_receiver beamr_receiver_ui
+        RESOURCE_PREFIX /i18n)
+endif()

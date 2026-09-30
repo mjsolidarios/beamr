@@ -1,5 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QTranslator>
 
 #include <beamr/config.h>
 #include <beamr/log.h>
@@ -12,6 +13,11 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationName(QStringLiteral("beamr"));
     QGuiApplication::setOrganizationName(QStringLiteral("beamr"));
     QGuiApplication::setApplicationVersion(QString::fromLatin1(beamr::kVersion));
+
+    // The phone's or computer's language, when beamr has been translated into it.
+    QTranslator translator;
+    if (translator.load(QLocale(), QStringLiteral("beamr_sender"), QStringLiteral("_"), QStringLiteral(":/i18n")))
+        QCoreApplication::installTranslator(&translator);
 
     QQmlApplicationEngine engine;
     engine.setInitialProperties({

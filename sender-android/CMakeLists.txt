@@ -82,3 +82,12 @@ set_target_properties(beamr_sender PROPERTIES
     # Manifest and Java sources for screen capture.
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )
+
+# Translations (see BEAMR_LANGUAGES in the top-level CMakeLists.txt).
+if(BEAMR_LANGUAGES)
+    qt_add_translations(beamr_sender
+        TS_FILE_BASE beamr_sender
+        TS_FILE_DIR i18n
+        SOURCE_TARGETS beamr_sender
+        RESOURCE_PREFIX /i18n)
+endif()

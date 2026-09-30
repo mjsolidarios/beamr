@@ -10,7 +10,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick)
-qt_standard_project_setup(REQUIRES 6.5)
+# Languages the apps are translated into, e.g. -DBEAMR_LANGUAGES="fil;es".
+# `cmake --build <dir> --target update_translations` then writes the .ts
+# files in each app's i18n/ folder for translators (Qt Linguist opens them);
+# the build turns them into the apps' translations.
+set(BEAMR_LANGUAGES "" CACHE STRING "Languages to translate the apps into (e.g. fil;es)")
+if(BEAMR_LANGUAGES)
+    find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
+endif()
+qt_standard_project_setup(REQUIRES 6.5
+    I18N_SOURCE_LANGUAGE en
+    I18N_TRANSLATED_LANGUAGES ${BEAMR_LANGUAGES})
 # Our QML lives in a qml/ subfolder of each module; let Qt generate the
 # extra qmldir it needs (policy introduced in Qt 6.8).
 if(QT_KNOWN_POLICY_QTP0004)
