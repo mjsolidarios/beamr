@@ -40,6 +40,14 @@ screen whose code was scanned. See [`common/include/beamr/protocol.h`](common/in
 for the control protocol (newline-delimited JSON over TCP) and the video stream
 framing.
 
+## Downloads
+
+Every push builds the desktop app for Linux (AppImage) and Windows (zip) and
+the phone app (APK) in [GitHub Actions](https://github.com/mjsolidarios/beamr/actions);
+the files are attached to each run. Those APKs are test builds signed with a
+throwaway key, so installing a newer one means uninstalling the old one first.
+Signed releases will be on the [Releases](https://github.com/mjsolidarios/beamr/releases) page.
+
 ## Building
 
 Requirements:

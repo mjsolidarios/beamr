@@ -1,7 +1,8 @@
-name: Desktop app
+name: Build
 
-# Builds the receiver for Linux (AppImage) and Windows (zip) with the same
-# Qt the project is developed with, and keeps the packages as artifacts.
+# Builds the desktop receiver for Linux (AppImage) and Windows (zip), and the
+# Android sender (APK), with the same Qt the project is developed with, and
+# keeps the packages as artifacts.
 
 on:
   push:
@@ -16,6 +17,10 @@ env:
   # aqtinstall 3.3 can't read yet; 6.10 has the same FFmpeg 7.1 and the Qt
   # features beamr needs (6.8+). Move up once aqtinstall catches up.
   QT_VERSION_WINDOWS: "6.10.3"
+  # Keep in step with the NDK Qt was built with.
+  ANDROID_NDK_VERSION: "28.2.13676358"
+  ANDROID_PLATFORM: "android-36"
+  ANDROID_BUILD_TOOLS: "36.0.0"
 
 jobs:
   linux:
@@ -133,4 +138,63 @@ jobs:
         with:
           name: beamr-receiver-windows-x64
           path: beamr-receiver
+          if-no-files-found: error
+
+  android:
+    name: Android
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK and NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;$ANDROID_PLATFORM" "build-tools;$ANDROID_BUILD_TOOLS" "ndk;$ANDROID_NDK_VERSION" > /dev/null
+
+      # Installs Qt for Android plus the matching desktop Qt its tools run on.
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: all_os
+          target: android
+          arch: android_arm64_v8a
+          cache: true
+
+      - name: Build
+        run: |
+          host_qt="$(dirname "$QT_ROOT_DIR")/gcc_64"
+          "$QT_ROOT_DIR/bin/qt-cmake" -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$host_qt" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          cmake --build build --target apk
+
+      # Test builds: signed with a key made for this run only, so the APK
+      # installs, but each one must replace the last by uninstalling it.
+      # Releases get the project's own key.
+      - name: Sign for testing
+        run: |
+          tools="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS"
+          apk=$(find build -name '*release-unsigned.apk' | head -n 1)
+          test -n "$apk" || { echo "no unsigned APK built"; find build -name '*.apk'; exit 1; }
+          keytool -genkeypair -keystore ci.jks -storepass android -keypass android -alias ci \
+            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=beamr CI" -noprompt
+          "$tools/zipalign" -f -p 4 "$apk" aligned.apk
+          "$tools/apksigner" sign --ks ci.jks --ks-pass pass:android --ks-key-alias ci \
+            --out beamr-android-arm64-test.apk aligned.apk
+          "$tools/apksigner" verify beamr-android-arm64-test.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beamr-android-arm64-test
+          path: beamr-android-arm64-test.apk
           if-no-files-found: error
