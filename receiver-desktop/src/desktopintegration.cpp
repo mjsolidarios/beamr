@@ -3,6 +3,11 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QIcon>
+#include <QGuiApplication>
+#include <QPainter>
+#include <QStyleHints>
+#include <QSvgRenderer>
 #include <QFileInfo>
 #include <QMenu>
 #include <QSettings>
@@ -15,6 +20,27 @@ namespace {
 
 const QString kKeepRunningKey = QStringLiteral("app/keepRunning");
 const QString kBackgroundArg = QStringLiteral("--background");
+
+// A one-colour glyph like the panel's other icons: white on a dark panel,
+// near-black on a light one. macOS tints it itself (a mask icon).
+QIcon trayIcon()
+{
+    const bool dark = QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Light;
+    QSvgRenderer svg(QStringLiteral(":/beamr/beamr-tray.svg"));
+    QIcon icon;
+    for (int size : {16, 22, 24, 32, 48, 64}) {
+        QPixmap pixmap(size, size);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        svg.render(&painter);
+        painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        painter.fillRect(pixmap.rect(), dark ? QColor(0xff, 0xff, 0xff) : QColor(0x1f, 0x23, 0x2b));
+        painter.end();
+        icon.addPixmap(pixmap);
+    }
+    icon.setIsMask(true);
+    return icon;
+}
 
 // What sign-in should run: the AppImage itself when running from one (its
 // contents live in a temporary mount), else this executable.
@@ -56,7 +82,9 @@ DesktopIntegration::DesktopIntegration(QObject *parent)
         m_menu->addSeparator();
         m_menu->addAction(tr("Quit beamr"), this, &DesktopIntegration::quit);
 
-        m_tray = new QSystemTrayIcon(QApplication::windowIcon(), this);
+        m_tray = new QSystemTrayIcon(trayIcon(), this);
+        connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, m_tray,
+                [this] { m_tray->setIcon(trayIcon()); });
         m_tray->setToolTip(QStringLiteral("beamr"));
         m_tray->setContextMenu(m_menu);
         connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {

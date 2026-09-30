@@ -114,6 +114,7 @@ target_link_libraries(beamr_receiver_ui PUBLIC
     Qt6::Network
     Qt6::Qml
     Qt6::Quick
+    Qt6::Svg
     Qt6::Widgets
 )
 
@@ -124,7 +125,7 @@ qt_add_executable(beamr_receiver
 qt_add_resources(beamr_receiver "app_icon"
     PREFIX /beamr
     BASE platform
-    FILES platform/beamr.png
+    FILES platform/beamr.png platform/beamr-tray.svg
 )
 if(WIN32)
     # The executable's icon in Explorer and the taskbar.
