@@ -57,6 +57,10 @@ ControlServer::ControlServer(ReceiverController *controller)
     connect(controller, &ReceiverController::requestExpired, this, [this](const QString &requestId) {
         answer(requestId, false, protocol::kReasonExpired);
     });
+    connect(controller, &ReceiverController::keyFrameNeeded, this, [this](const QString &requestId) {
+        if (QTcpSocket *socket = m_peers.value(requestId))
+            send(socket, {{"type", protocol::kKeyFrame}});
+    });
     connect(controller, &ReceiverController::castStopped, this, [this](const QString &requestId) {
         close(requestId, {{"type", protocol::kBye}});
     });
@@ -183,9 +187,9 @@ void ControlServer::readFrames(QTcpSocket *socket)
             return;
         socket->skip(protocol::FrameHeader::kSize);
         if (header.flags & protocol::kFrameAudio)
-            m_controller->audioPacket(requestId, socket->read(header.size));
+            m_controller->audioPacket(requestId, socket->read(header.size), header.ptsUs);
         else
-            m_controller->videoPacket(requestId, socket->read(header.size));
+            m_controller->videoPacket(requestId, socket->read(header.size), header.flags, header.ptsUs);
     }
 }
 

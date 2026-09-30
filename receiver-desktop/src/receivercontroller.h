@@ -87,9 +87,9 @@ public:
     // The sender's video: whether a stream for `requestId` may start, its
     // packets, and its end.
     bool isCasting(const QString &requestId) const;
-    void videoPacket(const QString &requestId, const QByteArray &packet);
+    void videoPacket(const QString &requestId, const QByteArray &packet, quint8 flags, qint64 ptsUs);
     void videoEnded(const QString &requestId);
-    void audioPacket(const QString &requestId, const QByteArray &packet);
+    void audioPacket(const QString &requestId, const QByteArray &packet, qint64 ptsUs);
 
     Q_INVOKABLE void addScreen();
     // Stops its cast, if any. The last screen stays.
@@ -121,6 +121,7 @@ signals:
     void requestAnswered(const QString &requestId, bool accepted);
     void requestExpired(const QString &requestId);
     void castStopped(const QString &requestId);
+    void keyFrameNeeded(const QString &requestId);
 
 private:
     struct TrustedDevice

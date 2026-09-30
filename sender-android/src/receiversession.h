@@ -46,6 +46,8 @@ signals:
     // It's a beamr receiver; worth remembering.
     void welcomed();
     void approved();
+    // The receiver wants a keyframe, e.g. to start a recording cleanly.
+    void keyFrameRequested();
     // The session is over and this object can go.
     void ended(const QString &message, bool isError);
 

@@ -27,6 +27,8 @@ public:
     void closeAll();
     void sendFrame(const QByteArray &data, quint8 flags, qint64 ptsUs);
     void sendAudio(const QByteArray &data, qint64 ptsUs);
+    // Asks the encoder for a keyframe (at most every half second).
+    void requestKeyFrame();
 
 signals:
     void opened(const QString &sessionId);
@@ -47,7 +49,6 @@ private:
     // Tears a connection down quietly; false if there was none.
     bool drop(const QString &sessionId);
     void send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags);
-    void requestKeyFrame();
 
     QHash<QString, Destination> m_destinations;
     QElapsedTimer m_sinceKeyFrameRequest;

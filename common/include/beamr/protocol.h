@@ -13,6 +13,7 @@ class QIODevice;
 //   sender   -> receiver  {"type":"hello","version":1,"deviceId":..,"name":..,"model":..,"screen":..}
 //   receiver -> sender    {"type":"welcome","name":<receiver name>,"audio":["opus"]}   right after hello
 //   receiver -> sender    {"type":"answer","accepted":true|false,"reason":..,"streamToken":..}
+//   receiver -> sender    {"type":"keyframe"}    send a keyframe soon (e.g. a recording starts)
 //   either   -> other     {"type":"bye"}, then the connection closes
 //
 // "screen" is optional: the id from a receiver's QR code, naming which of
@@ -42,6 +43,7 @@ inline constexpr char kHello[] = "hello";
 inline constexpr char kWelcome[] = "welcome";
 inline constexpr char kAnswer[] = "answer";
 inline constexpr char kBye[] = "bye";
+inline constexpr char kKeyFrame[] = "keyframe";
 inline constexpr char kStream[] = "stream";
 inline constexpr char kCodecH264[] = "h264";
 inline constexpr char kCodecOpus[] = "opus";

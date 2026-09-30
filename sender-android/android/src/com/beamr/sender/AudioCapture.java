@@ -103,17 +103,22 @@ final class AudioCapture {
         byte[] chunk = new byte[CHUNK_BYTES];
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         long framesRead = 0;
+        // Timestamps on the same clock as the screen encoder's (monotonic,
+        // microseconds), so a recording keeps sound and picture together.
+        long startUs = -1;
         try {
             while (mRunning) {
                 int read = mRecord.read(chunk, 0, chunk.length);
                 if (read <= 0)
                     continue;
+                if (startUs < 0)
+                    startUs = System.nanoTime() / 1000 - (long) (read / (CHANNELS * 2)) * 1_000_000L / SAMPLE_RATE;
                 int index = mCodec.dequeueInputBuffer(DEQUEUE_TIMEOUT_US);
                 if (index >= 0) {
                     ByteBuffer input = mCodec.getInputBuffer(index);
                     input.clear();
                     input.put(chunk, 0, read);
-                    long ptsUs = framesRead * 1_000_000L / SAMPLE_RATE;
+                    long ptsUs = startUs + framesRead * 1_000_000L / SAMPLE_RATE;
                     mCodec.queueInputBuffer(index, 0, read, ptsUs, 0);
                 }
                 framesRead += read / (CHANNELS * 2);

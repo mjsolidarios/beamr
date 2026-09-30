@@ -1,11 +1,11 @@
 find_package(Qt6 REQUIRED COMPONENTS Concurrent Multimedia Network Svg)
 
-# H.264 decoding uses the FFmpeg that ships with Qt Multimedia, so the
+# H.264 decoding and MP4 recording use the FFmpeg that ships with Qt Multimedia, so the
 # receiver deploys with nothing extra. Qt doesn't ship its headers; the
 # matching ones are vendored in third_party/ffmpeg.
 set(BEAMR_FFMPEG_LIB_DIR "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_LIBS}" CACHE PATH
     "Directory with the FFmpeg libraries to decode video with")
-foreach(_lib avcodec avutil)
+foreach(_lib avcodec avformat avutil)
     find_library(BEAMR_${_lib}_LIBRARY NAMES ${_lib} PATHS "${BEAMR_FFMPEG_LIB_DIR}" NO_DEFAULT_PATH)
     if(NOT BEAMR_${_lib}_LIBRARY)
         message(FATAL_ERROR "lib${_lib} not found in ${BEAMR_FFMPEG_LIB_DIR}. Install Qt Multimedia's "
@@ -14,7 +14,7 @@ foreach(_lib avcodec avutil)
 endforeach()
 add_library(beamr_ffmpeg INTERFACE)
 target_include_directories(beamr_ffmpeg SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party/ffmpeg/include")
-target_link_libraries(beamr_ffmpeg INTERFACE ${BEAMR_avcodec_LIBRARY} ${BEAMR_avutil_LIBRARY})
+target_link_libraries(beamr_ffmpeg INTERFACE ${BEAMR_avcodec_LIBRARY} ${BEAMR_avformat_LIBRARY} ${BEAMR_avutil_LIBRARY})
 if(UNIX AND NOT APPLE)
     # Qt's FFmpeg needs Qt's stub libraries (libQt6FFmpegStub-*) next to it.
     # The stubs resolve OpenSSL and VA-API at run time, so their symbols
@@ -43,6 +43,7 @@ qt_add_qml_module(beamr_receiver_ui
         src/connectionrequestmodel.h src/connectionrequestmodel.cpp
         src/controlserver.h src/controlserver.cpp
         src/qrcodeitem.h src/qrcodeitem.cpp
+        src/recorder.h src/recorder.cpp
         src/receivercontroller.h src/receivercontroller.cpp
         src/recordingsmodel.h src/recordingsmodel.cpp
         src/videodecoder.h src/videodecoder.cpp

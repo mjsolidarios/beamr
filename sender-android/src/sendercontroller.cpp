@@ -306,6 +306,9 @@ void SenderController::addReceiver(const QString &address, const QString &screen
     auto *session = new ReceiverSession(endpoint.host, endpoint.port, displayEndpoint(endpoint), m_device, screen, this);
     connect(session, &ReceiverSession::welcomed, this, [this, session] { rememberReceiver(session); });
     connect(session, &ReceiverSession::approved, this, [this, session] { onSessionApproved(session); });
+    connect(session, &ReceiverSession::keyFrameRequested, this, [this] {
+        QMetaObject::invokeMethod(m_stream, &StreamSender::requestKeyFrame);
+    });
     connect(session, &ReceiverSession::ended, this, [this, session](const QString &message, bool isError) {
         onSessionEnded(session, message, isError);
     });

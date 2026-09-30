@@ -149,6 +149,8 @@ void ReceiverSession::onReadyRead()
                     true);
             else
                 end(tr("“%1” declined the request.").arg(m_name), true);
+        } else if (type == QLatin1StringView(protocol::kKeyFrame)) {
+            emit keyFrameRequested();
         } else if (type == QLatin1StringView(protocol::kBye)) {
             end(tr("“%1” ended the session.").arg(m_name), false);
         }

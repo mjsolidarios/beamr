@@ -127,7 +127,10 @@ int ReceiverController::maxScreens() const
 CastScreen *ReceiverController::appendScreen()
 {
     auto *screen = new CastScreen(int(m_screens.size()) + 1, this);
+    screen->setRecordingsFolder(m_recordingsDir);
     connect(screen, &CastScreen::notify, this, &ReceiverController::notify);
+    connect(screen, &CastScreen::recordingSaved, m_recordings, &RecordingsModel::refresh);
+    connect(screen, &CastScreen::keyFrameNeeded, this, &ReceiverController::keyFrameNeeded);
     connect(screen, &CastScreen::castStopped, this, &ReceiverController::castStopped);
     connect(screen, &CastScreen::castingChanged, this, [this, screen] {
         onCastingChanged(screen);
@@ -270,16 +273,17 @@ bool ReceiverController::isCasting(const QString &requestId) const
     return screen && !screen->demo();
 }
 
-void ReceiverController::videoPacket(const QString &requestId, const QByteArray &packet)
+void ReceiverController::videoPacket(const QString &requestId, const QByteArray &packet, quint8 flags,
+                                     qint64 ptsUs)
 {
     if (CastScreen *screen = screenCasting(requestId); screen && !screen->demo())
-        screen->videoPacket(packet);
+        screen->videoPacket(packet, flags, ptsUs);
 }
 
-void ReceiverController::audioPacket(const QString &requestId, const QByteArray &packet)
+void ReceiverController::audioPacket(const QString &requestId, const QByteArray &packet, qint64 ptsUs)
 {
     if (CastScreen *screen = screenCasting(requestId); screen && !screen->demo())
-        screen->audioPacket(packet);
+        screen->audioPacket(packet, ptsUs);
 }
 
 void ReceiverController::videoEnded(const QString &requestId)

@@ -3,6 +3,7 @@
 #include <QElapsedTimer>
 #include <QObject>
 #include <QPointer>
+#include <QSize>
 #include <QThread>
 #include <QVideoSink>
 #include <QtQml/qqmlregistration.h>
@@ -10,6 +11,7 @@
 #include "connectionrequestmodel.h"
 
 class AudioPlayer;
+class Recorder;
 class QVideoFrame;
 class VideoDecoder;
 
@@ -68,9 +70,10 @@ public:
 
     // Shows `request`'s phone here, replacing whoever was casting.
     void start(const ConnectionRequest &request);
-    void videoPacket(const QByteArray &packet);
+    void videoPacket(const QByteArray &packet, quint8 flags, qint64 ptsUs);
     void videoEnded();
-    void audioPacket(const QByteArray &packet);
+    void audioPacket(const QByteArray &packet, qint64 ptsUs);
+    void setRecordingsFolder(const QString &folder) { m_recordingsFolder = folder; }
     // Once a second, for the recording clock.
     void tick();
 
@@ -92,6 +95,9 @@ signals:
     // For ReceiverController: toasts, and hanging up on the phone.
     void notify(const QString &message);
     void castStopped(const QString &requestId);
+    void recordingSaved();
+    // The recorder needs a keyframe to start or resume from.
+    void keyFrameNeeded(const QString &requestId);
 
 private:
     void end();
@@ -121,6 +127,10 @@ private:
     QThread m_decoderThread;
     VideoDecoder *m_decoder = nullptr;
     AudioPlayer *m_audio = nullptr;
+    // Writes the stream to disk while recording; same thread as decoding.
+    Recorder *m_recorder = nullptr;
+    QString m_recordingsFolder;
+    QSize m_videoSize;
     bool m_hasAudio = false;
     bool m_audible = false;
 };

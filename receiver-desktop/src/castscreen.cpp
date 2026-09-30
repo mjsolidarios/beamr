@@ -1,11 +1,16 @@
 #include "castscreen.h"
 
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QVideoFrame>
 
 #include <beamr/log.h>
 
 #include "audioplayer.h"
+#include "recorder.h"
 #include "videodecoder.h"
 
 namespace {
@@ -35,6 +40,17 @@ CastScreen::CastScreen(int number, QObject *parent)
     m_audio = new AudioPlayer;
     m_audio->moveToThread(&m_decoderThread);
     connect(&m_decoderThread, &QThread::finished, m_audio, &QObject::deleteLater);
+    m_recorder = new Recorder;
+    m_recorder->moveToThread(&m_decoderThread);
+    connect(&m_decoderThread, &QThread::finished, m_recorder, &QObject::deleteLater);
+    connect(m_recorder, &Recorder::finished, this, [this](const QString &path, const QString &error) {
+        if (!error.isEmpty()) {
+            emit notify(tr("Recording failed: %1").arg(error));
+        } else {
+            emit notify(tr("Saved %1").arg(QFileInfo(path).fileName()));
+            emit recordingSaved();
+        }
+    });
     m_decoderThread.setObjectName(QStringLiteral("beamr-decoder-%1").arg(m_id));
     m_decoderThread.start();
 }
@@ -85,6 +101,9 @@ void CastScreen::setPaused(bool paused)
         emit recordingSecondsChanged();
     }
     updateMute();
+    QMetaObject::invokeMethod(m_recorder, [recorder = m_recorder, paused] { recorder->setPaused(paused); });
+    if (!paused && m_recording && !m_active.demo)
+        emit keyFrameNeeded(m_active.requestId);
     emit pausedChanged();
 }
 
@@ -141,12 +160,17 @@ void CastScreen::end()
     emit castStopped(requestId);
 }
 
-void CastScreen::videoPacket(const QByteArray &packet)
+void CastScreen::videoPacket(const QByteArray &packet, quint8 flags, qint64 ptsUs)
 {
     // Keep decoding while paused so resuming shows the current picture at once.
     QMetaObject::invokeMethod(m_decoder, [decoder = m_decoder, packet, generation = m_videoGeneration] {
         decoder->decode(packet, generation);
     });
+    if (m_recording) {
+        QMetaObject::invokeMethod(m_recorder, [recorder = m_recorder, packet, flags, ptsUs] {
+            recorder->video(packet, flags, ptsUs);
+        });
+    }
 }
 
 void CastScreen::videoEnded()
@@ -155,9 +179,14 @@ void CastScreen::videoEnded()
     resetAudio();
 }
 
-void CastScreen::audioPacket(const QByteArray &packet)
+void CastScreen::audioPacket(const QByteArray &packet, qint64 ptsUs)
 {
     QMetaObject::invokeMethod(m_audio, [audio = m_audio, packet] { audio->decode(packet); });
+    if (m_recording) {
+        QMetaObject::invokeMethod(m_recorder, [recorder = m_recorder, packet, ptsUs] {
+            recorder->audio(packet, ptsUs);
+        });
+    }
     if (!m_hasAudio) {
         m_hasAudio = true;
         qCInfo(lcCodec) << "screen" << m_number << "has sound";
@@ -196,6 +225,7 @@ void CastScreen::showFrame(const QVideoFrame &frame, int generation)
         return;
     if (!m_paused && m_videoSink)
         m_videoSink->setVideoFrame(frame);
+    m_videoSize = frame.size();
     if (!m_hasVideo) {
         m_hasVideo = true;
         qCInfo(lcCodec) << "screen" << m_number << "first frame" << frame.size();
@@ -228,6 +258,18 @@ void CastScreen::toggleRecording()
     m_recordedMs = 0;
     m_recordingSegment.start();
     m_lastRecordingSeconds = 0;
+    if (!m_active.demo) {
+        // beamr-Pixel-8-20260930-142501.mp4
+        QString device = m_active.device.name;
+        device.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9._-]+")), QStringLiteral("-"));
+        const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+        const QString path = QDir(m_recordingsFolder).filePath(QStringLiteral("beamr-%1-%2.mp4").arg(device, stamp));
+        QMetaObject::invokeMethod(m_recorder, [recorder = m_recorder, path, size = m_videoSize, audio = m_hasAudio] {
+            recorder->start(path, size, audio);
+        });
+        // Start now rather than at the phone's next scheduled keyframe.
+        emit keyFrameNeeded(m_active.requestId);
+    }
     emit recordingChanged();
     emit recordingSecondsChanged();
 }
@@ -237,10 +279,12 @@ void CastScreen::stopRecording()
     m_recording = false;
     emit recordingChanged();
     emit recordingSecondsChanged();
-    // The recorder that writes the stream to disk arrives with video decoding
-    // (Milestone 2); until then only the demo can reach this.
-    emit notify(m_active.demo ? tr("Demo recording stopped. Demo mode doesn't write files.")
-                              : tr("Recording stopped"));
+    if (m_active.demo) {
+        emit notify(tr("Demo recording stopped. Demo mode doesn't write files."));
+        return;
+    }
+    // Reports back through Recorder::finished: saved, or why not.
+    QMetaObject::invokeMethod(m_recorder, &Recorder::stop);
 }
 
 void CastScreen::tick()
