@@ -78,7 +78,7 @@ set_target_properties(beamr_sender PROPERTIES
     QT_ANDROID_APP_NAME beamr
     QT_ANDROID_MIN_SDK_VERSION 29
     QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
-    QT_ANDROID_VERSION_CODE 1
+    QT_ANDROID_VERSION_CODE 2
     # Manifest and Java sources for screen capture.
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )
