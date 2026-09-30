@@ -230,23 +230,67 @@ jobs:
             -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
           cmake --build build --target apk
 
-      # Test builds: signed with a key made for this run only, so the APK
+      # Signed with the project's release key when the repository has it
+      # (see scripts/make-android-release-key.sh), so updates install over
+      # each other. Without it, a key made for this run only: the APK
       # installs, but each one must replace the last by uninstalling it.
-      # Releases get the project's own key.
-      - name: Sign for testing
+      # Tagged releases insist on the real key.
+      - name: Sign
+        env:
+          KEYSTORE_B64: ${{ secrets.BEAMR_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.BEAMR_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.BEAMR_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.BEAMR_KEY_PASSWORD }}
         run: |
           tools="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS"
           apk=$(find build -name '*release-unsigned.apk' | head -n 1)
           test -n "$apk" || { echo "no unsigned APK built"; find build -name '*.apk'; exit 1; }
-          keytool -genkeypair -keystore ci.jks -storepass android -keypass android -alias ci \
-            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=beamr CI" -noprompt
           "$tools/zipalign" -f -p 4 "$apk" aligned.apk
-          "$tools/apksigner" sign --ks ci.jks --ks-pass pass:android --ks-key-alias ci \
-            --out beamr-android-arm64-test.apk aligned.apk
-          "$tools/apksigner" verify beamr-android-arm64-test.apk
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.jks
+            "$tools/apksigner" sign --ks release.jks --ks-pass env:KEYSTORE_PASSWORD \
+              --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out beamr-android-arm64.apk aligned.apk
+            rm release.jks
+          else
+            if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+              echo "::error::Releases need the release key: add the BEAMR_KEYSTORE_* secrets."
+              exit 1
+            fi
+            keytool -genkeypair -keystore ci.jks -storepass android -keypass android -alias ci \
+              -keyalg RSA -keysize 2048 -validity 30 -dname "CN=beamr CI" -noprompt
+            "$tools/apksigner" sign --ks ci.jks --ks-pass pass:android --ks-key-alias ci \
+              --out beamr-android-arm64-test.apk aligned.apk
+          fi
+          "$tools/apksigner" verify beamr-android-arm64*.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: beamr-android-arm64-test
-          path: beamr-android-arm64-test.apk
+          name: beamr-android-arm64
+          path: beamr-android-arm64*.apk
           if-no-files-found: error
+
+  # A version tag (v0.2.0) publishes everything above as a GitHub release.
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows, macos, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Collect files
+        run: |
+          mkdir release
+          (cd dist && zip -qr ../release/beamr-receiver-windows-x64.zip beamr-receiver-windows-x64)
+          find dist \( -name '*.AppImage' -o -name '*.dmg' -o -name '*-setup.exe' -o -name '*.apk' \) \
+            -exec cp {} release/ \;
+          ls -la release
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
