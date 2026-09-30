@@ -39,6 +39,7 @@ const QString kDeviceNameKey = QStringLiteral("device/name");
 const QString kRecentKey = QStringLiteral("recentReceivers");
 const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
 const QString kShareAudioKey = QStringLiteral("cast/shareAudio");
+const QString kOnboardingDoneKey = QStringLiteral("onboarding/done");
 
 // The one controller the capture service reports to. QML creates it once.
 SenderController *s_instance = nullptr;
@@ -182,6 +183,7 @@ SenderController::SenderController(QObject *parent)
     settings.endArray();
 
     m_shareAudio = settings.value(kShareAudioKey, true).toBool();
+    m_onboardingDone = settings.value(kOnboardingDoneKey, false).toBool();
 
     QGuiApplication::styleHints()->setColorScheme(
         Qt::ColorScheme(settings.value(kColorSchemeKey, int(Qt::ColorScheme::Unknown)).toInt()));
@@ -440,6 +442,15 @@ void SenderController::setAudioState(const QString &state)
         return;
     m_audioState = state;
     emit audioStateChanged();
+}
+
+void SenderController::setOnboardingDone(bool done)
+{
+    if (done == m_onboardingDone)
+        return;
+    m_onboardingDone = done;
+    QSettings().setValue(kOnboardingDoneKey, done);
+    emit onboardingDoneChanged();
 }
 
 void SenderController::setShareAudio(bool share)

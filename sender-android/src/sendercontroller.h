@@ -40,7 +40,9 @@ class SenderController : public QObject
     Q_PROPERTY(QVariantList recentReceivers READ recentReceivers NOTIFY recentReceiversChanged)
     Q_PROPERTY(int defaultPort READ defaultPort CONSTANT)
     Q_PROPERTY(bool canScan READ canScan CONSTANT)
-    // For the About line: the Qt this build runs on.
+    // The first-launch introduction has been seen (or skipped).
+    Q_PROPERTY(bool onboardingDone READ onboardingDone WRITE setOnboardingDone NOTIFY onboardingDoneChanged)
+    // For the About page: the Qt this build runs on.
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     // Cast what apps play, too. Takes effect on the next cast.
     Q_PROPERTY(bool shareAudio READ shareAudio WRITE setShareAudio NOTIFY shareAudioChanged)
@@ -69,6 +71,8 @@ public:
     CastState castState() const { return m_castState; }
     bool canScan() const;
     QString qtVersion() const { return QString::fromLatin1(qVersion()); }
+    bool onboardingDone() const { return m_onboardingDone; }
+    void setOnboardingDone(bool done);
     bool shareAudio() const { return m_shareAudio; }
     void setShareAudio(bool share);
     QString audioState() const { return m_audioState; }
@@ -112,6 +116,7 @@ signals:
     void recentReceiversChanged();
     void colorSchemeChanged();
     void shareAudioChanged();
+    void onboardingDoneChanged();
     void audioStateChanged();
 
 private:
@@ -148,6 +153,7 @@ private:
     bool m_messageIsError = false;
     QString m_retryAddress;
     bool m_shareAudio = true;
+    bool m_onboardingDone = false;
     QString m_audioState;
     QVariantList m_recent;
 };

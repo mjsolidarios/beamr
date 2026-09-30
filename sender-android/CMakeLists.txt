@@ -15,11 +15,14 @@ qt_add_qml_module(beamr_sender
         src/sessionmodel.h src/sessionmodel.cpp
         src/streamsender.h src/streamsender.cpp
     QML_FILES
+        qml/AboutPage.qml
         qml/CastCard.qml
         qml/HomePage.qml
         qml/Icon.qml
         qml/Main.qml
         qml/MessageBanner.qml
+        qml/OnboardingArt.qml
+        qml/OnboardingView.qml
         qml/PillButton.qml
         qml/SectionLabel.qml
         qml/SessionRow.qml
@@ -28,12 +31,19 @@ qt_add_qml_module(beamr_sender
         qml/Theme.qml
     RESOURCES
         qml/icons/alert.svg
+        qml/icons/arrow-left.svg
+        qml/icons/book-open.svg
+        qml/icons/bug.svg
         qml/icons/cast.svg
         qml/icons/check.svg
+        qml/icons/chevron-right.svg
+        qml/icons/code.svg
+        qml/icons/external-link.svg
         qml/icons/info.svg
         qml/icons/monitor.svg
         qml/icons/moon.svg
         qml/icons/pencil.svg
+        qml/icons/scale.svg
         qml/icons/scan-qr-code.svg
         qml/icons/settings.svg
         qml/icons/smartphone.svg
@@ -41,6 +51,7 @@ qt_add_qml_module(beamr_sender
         qml/icons/volume-2.svg
         qml/icons/volume-x.svg
         qml/icons/x.svg
+        qml/images/beamr-icon.png
 )
 
 target_include_directories(beamr_sender PRIVATE src)
@@ -58,6 +69,10 @@ target_link_libraries(beamr_sender PRIVATE
 # service type mediaProjection, AudioPlaybackCapture and
 # KEY_PREPEND_HEADER_TO_SYNC_FRAMES.
 set_target_properties(beamr_sender PROPERTIES
+    # The app's permanent identity on Android: changing it later makes a
+    # different app that can't update this one.
+    QT_ANDROID_PACKAGE_NAME io.github.mjsolidarios.beamr
+    QT_ANDROID_APP_NAME beamr
     QT_ANDROID_MIN_SDK_VERSION 29
     QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
     QT_ANDROID_VERSION_CODE 1

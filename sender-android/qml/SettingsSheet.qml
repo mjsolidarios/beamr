@@ -14,6 +14,7 @@ Drawer {
     readonly property real safeBottom: parent ? parent.SafeArea.margins.bottom : 0
 
     signal renameRequested()
+    signal aboutRequested()
 
     edge: Qt.BottomEdge
     width: parent.width
@@ -221,22 +222,59 @@ Drawer {
             }
         }
 
-        // Qt's LGPL asks apps to say they use Qt and where its license is.
-        Label {
+        ItemDelegate {
+            id: aboutRow
+
             Layout.fillWidth: true
-            Layout.topMargin: 24
+            Layout.topMargin: 8
             Layout.bottomMargin: 8
-            horizontalAlignment: Text.AlignHCenter
-            text: qsTr("beamr %1 · MIT license<br>Built with Qt %2 (GNU LGPL v3) in Qt Creator · "
-                       + "<a href=\"https://github.com/mjsolidarios/beamr/blob/main/THIRD_PARTY_NOTICES.md\">Licenses</a>")
-                  .arg(root.appVersion).arg(SenderController.qtVersion)
-            textFormat: Text.StyledText
-            linkColor: Theme.accent
-            color: Theme.textFaint
-            font.pixelSize: 12
-            lineHeight: 1.3
-            wrapMode: Text.Wrap
-            onLinkActivated: link => Qt.openUrlExternally(link)
+            Layout.leftMargin: -12
+            Layout.rightMargin: -12
+            leftPadding: 12
+            rightPadding: 12
+            onClicked: {
+                root.close()
+                root.aboutRequested()
+            }
+            Accessible.name: qsTr("About beamr")
+
+            background: Rectangle {
+                radius: Theme.radiusSmall
+                color: aboutRow.down ? Theme.pressed : "transparent"
+            }
+
+            contentItem: RowLayout {
+                spacing: 12
+
+                Icon {
+                    glyph: "info"
+                    size: 20
+                    color: Theme.textMuted
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    Label {
+                        text: qsTr("About beamr")
+                        color: Theme.text
+                        font.pixelSize: 15
+                    }
+
+                    Label {
+                        text: qsTr("Version %1 · open source").arg(root.appVersion)
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                    }
+                }
+
+                Icon {
+                    glyph: "chevron-right"
+                    size: 18
+                    color: Theme.textFaint
+                }
+            }
         }
     }
 }

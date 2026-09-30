@@ -22,9 +22,29 @@ ApplicationWindow {
     palette.highlight: Theme.accent
     palette.highlightedText: Theme.accentInk
 
-    // Quitting would drop every receiver and stop the cast; while connected,
+    // Shows the introduction again (from About) after it was finished once.
+    property bool replayIntroduction: false
+    readonly property bool introductionShown: !SenderController.onboardingDone || replayIntroduction
+
+    function finishIntroduction() {
+        SenderController.onboardingDone = true
+        replayIntroduction = false
+    }
+
+    // Back steps through the introduction and pages first. Past that,
+    // quitting would drop every receiver and stop the cast; while connected,
     // Android's back gesture only sends the app to the background.
     onClosing: close => {
+        if (introductionShown) {
+            if (onboarding.item && onboarding.item.goBack())
+                close.accepted = false
+            return
+        }
+        if (pages.depth > 1) {
+            close.accepted = false
+            pages.pop()
+            return
+        }
         if (SenderController.sessions.count > 0) {
             close.accepted = false
             SenderController.moveToBackground()
@@ -45,6 +65,35 @@ ApplicationWindow {
             anchors.leftMargin: frame.SafeArea.margins.left
             anchors.rightMargin: frame.SafeArea.margins.right
 
+            StackView {
+                id: pages
+
+                anchors.fill: parent
+                initialItem: homeScreen
+            }
+
+            // Full screen above everything until finished; fades out.
+            Loader {
+                id: onboarding
+
+                anchors.fill: parent
+                active: window.introductionShown || opacity > 0
+                opacity: window.introductionShown ? 1 : 0
+                z: 10
+
+                Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+
+                sourceComponent: OnboardingView {
+                    onFinished: window.finishIntroduction()
+                }
+            }
+        }
+    }
+
+    Component {
+        id: homeScreen
+
+        Item {
             RowLayout {
                 id: topBar
 
@@ -85,16 +134,22 @@ ApplicationWindow {
                 }
             }
 
-            Item {
+            HomePage {
                 anchors.top: topBar.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-
-                HomePage {
-                    anchors.fill: parent
-                }
             }
+        }
+    }
+
+    Component {
+        id: aboutScreen
+
+        AboutPage {
+            appVersion: window.appVersion
+            onBackRequested: pages.pop()
+            onIntroductionRequested: window.replayIntroduction = true
         }
     }
 
@@ -103,6 +158,7 @@ ApplicationWindow {
 
         appVersion: window.appVersion
         onRenameRequested: renameDialog.open()
+        onAboutRequested: pages.push(aboutScreen)
     }
 
     Dialog {
