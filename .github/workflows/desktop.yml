@@ -12,6 +12,10 @@ on:
 
 env:
   QT_VERSION: "6.11.2"
+  # Qt 6.11's Windows packages moved to a per-compiler repository layout that
+  # aqtinstall 3.3 can't read yet; 6.10 has the same FFmpeg 7.1 and the Qt
+  # features beamr needs (6.8+). Move up once aqtinstall catches up.
+  QT_VERSION_WINDOWS: "6.10.3"
 
 jobs:
   linux:
@@ -80,7 +84,7 @@ jobs:
       - name: Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: ${{ env.QT_VERSION }}
+          version: ${{ env.QT_VERSION_WINDOWS }}
           host: windows
           target: desktop
           arch: win64_msvc2022_64
