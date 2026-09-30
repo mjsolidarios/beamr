@@ -1,0 +1,131 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import Beamr.Sender
+
+// The one screen capture: ready to start, waiting on the consent dialog, or
+// live to some number of receivers.
+Rectangle {
+    id: root
+
+    readonly property int castState: SenderController.castState
+    readonly property bool live: castState === SenderController.On
+    readonly property int receivers: live ? SenderController.streamingCount : SenderController.approvedCount
+
+    implicitHeight: content.implicitHeight + 40
+    radius: Theme.radius
+    color: live ? Theme.successSoft : Theme.surface
+    border.color: live ? Theme.success : Theme.border
+
+    Behavior on color { ColorAnimation { duration: 200 } }
+
+    ColumnLayout {
+        id: content
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 20
+        spacing: 0
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 14
+
+            Rectangle {
+                implicitWidth: 44
+                implicitHeight: 44
+                radius: 22
+                color: root.live ? Theme.success : Theme.accentSoft
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "cast"
+                    size: 22
+                    color: root.live ? Theme.bg : Theme.accent
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                RowLayout {
+                    spacing: 6
+
+                    // Live light, like a recording dot.
+                    Rectangle {
+                        visible: root.live
+                        implicitWidth: 8
+                        implicitHeight: 8
+                        radius: 4
+                        color: Theme.success
+
+                        SequentialAnimation on opacity {
+                            running: root.live && root.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.3; duration: 800 }
+                            NumberAnimation { to: 1; duration: 800 }
+                        }
+                    }
+
+                    Label {
+                        text: root.live ? qsTr("Live")
+                            : root.castState === SenderController.Starting ? qsTr("Starting")
+                            : qsTr("Ready")
+                        color: root.live ? Theme.success : Theme.accent
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        font.capitalization: Font.AllUppercase
+                        font.letterSpacing: 1.2
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: root.live ? (root.receivers === 1 ? qsTr("Casting to 1 receiver")
+                                                            : qsTr("Casting to %1 receivers").arg(root.receivers))
+                        : root.castState === SenderController.Starting ? qsTr("Allow screen sharing")
+                        : root.receivers === 1 ? qsTr("Cast to 1 receiver")
+                        : qsTr("Cast to %1 receivers").arg(root.receivers)
+                    color: Theme.text
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+            }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 14
+            text: root.live
+                  ? qsTr("Switch to any app. Stop here or from the notification.")
+                  : root.castState === SenderController.Starting
+                    ? qsTr("In the dialog that opens, choose “Entire screen” and allow it.")
+                    : qsTr("Your screen shows on every receiver below that allowed this phone.")
+            color: Theme.textMuted
+            font.pixelSize: 14
+            lineHeight: 1.15
+            wrapMode: Text.Wrap
+        }
+
+        Label {
+            Layout.topMargin: 6
+            visible: root.live && SenderController.castSize.width > 0
+            text: qsTr("%1 × %2 · 60 fps").arg(SenderController.castSize.width).arg(SenderController.castSize.height)
+            color: Theme.textFaint
+            font.pixelSize: 13
+            font.features: { "tnum": 1 }
+        }
+
+        PillButton {
+            Layout.fillWidth: true
+            Layout.topMargin: 16
+            visible: root.castState !== SenderController.Starting
+            kind: root.live ? "danger" : "primary"
+            text: root.live ? qsTr("Stop casting") : qsTr("Start casting")
+            onClicked: root.live ? SenderController.stopCasting() : SenderController.startCasting()
+        }
+    }
+}
