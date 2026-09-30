@@ -88,9 +88,10 @@ Drawer {
                 contentItem: RowLayout {
                     spacing: 12
 
-                    Image {
-                        source: Qt.resolvedUrl("icons/film.svg")
-                        sourceSize: Qt.size(20, 20)
+                    Icon {
+                        glyph: "film"
+                        size: 20
+                        color: Theme.text
                         opacity: 0.6
                     }
 
@@ -151,10 +152,11 @@ Drawer {
                 visible: list.count === 0
                 spacing: 8
 
-                Image {
+                Icon {
                     Layout.alignment: Qt.AlignHCenter
-                    source: Qt.resolvedUrl("icons/film.svg")
-                    sourceSize: Qt.size(36, 36)
+                    glyph: "film"
+                    size: 36
+                    color: Theme.text
                     opacity: 0.25
                 }
 

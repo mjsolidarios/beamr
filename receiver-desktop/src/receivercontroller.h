@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QFutureWatcher>
+#include <QMediaDevices>
 #include <QList>
 #include <QObject>
 #include <QTimer>
@@ -31,6 +32,12 @@ class ReceiverController : public QObject
     // The one screen whose sound plays, so phones don't talk over each
     // other; null for silence. The first cast gets it.
     Q_PROPERTY(CastScreen *audioScreen READ audioScreen WRITE setAudioScreen NOTIFY audioScreenChanged)
+    // Qt::ColorScheme: Unknown follows the system.
+    Q_PROPERTY(int colorScheme READ colorScheme WRITE setColorScheme NOTIFY colorSchemeChanged)
+    // Speakers and headphones to play phones' sound on: [{id, name}], the
+    // system default first with an empty id.
+    Q_PROPERTY(QVariantList audioOutputs READ audioOutputs NOTIFY audioOutputsChanged)
+    Q_PROPERTY(QString audioOutput READ audioOutput WRITE setAudioOutput NOTIFY audioOutputChanged)
     Q_PROPERTY(QString receiverName READ receiverName WRITE setReceiverName NOTIFY receiverNameChanged)
     Q_PROPERTY(QStringList addresses READ addresses NOTIFY addressesChanged)
     Q_PROPERTY(int port READ port CONSTANT)
@@ -61,6 +68,11 @@ public:
     bool canAddScreen() const { return m_screens.size() < maxScreens(); }
     CastScreen *audioScreen() const { return m_audioScreen; }
     void setAudioScreen(CastScreen *screen);
+    int colorScheme() const { return m_colorScheme; }
+    void setColorScheme(int scheme);
+    QVariantList audioOutputs() const;
+    QString audioOutput() const { return m_audioOutput; }
+    void setAudioOutput(const QString &id);
     QString receiverName() const { return m_receiverName; }
     void setReceiverName(const QString &name);
     QStringList addresses() const { return m_addresses; }
@@ -114,6 +126,9 @@ signals:
     void stateChanged();
     void screensChanged();
     void audioScreenChanged();
+    void colorSchemeChanged();
+    void audioOutputsChanged();
+    void audioOutputChanged();
     void receiverNameChanged();
     void addressesChanged();
     void requireApprovalChanged();
@@ -156,6 +171,9 @@ private:
 
     QList<CastScreen *> m_screens;
     CastScreen *m_audioScreen = nullptr;
+    QString m_audioOutput;
+    int m_colorScheme = 0;
+    QMediaDevices *m_mediaDevices = nullptr;
     QString m_receiverName;
     QStringList m_addresses;
     bool m_requireApproval = true;

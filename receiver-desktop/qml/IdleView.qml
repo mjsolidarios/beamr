@@ -45,11 +45,12 @@ Item {
             width: Math.min(1010, root.width - 48)
             spacing: 0
 
-            Image {
+            Icon {
                 Layout.alignment: Qt.AlignHCenter
                 visible: !root.compact
-                source: Qt.resolvedUrl("icons/monitor.svg")
-                sourceSize: Qt.size(64, 64)
+                glyph: "monitor"
+                size: 64
+                color: Theme.text
                 opacity: 0.7
             }
 
@@ -89,9 +90,10 @@ Item {
                     anchors.centerIn: parent
                     spacing: 16
 
-                    Image {
-                        source: Qt.resolvedUrl("icons/monitor.svg")
-                        sourceSize: Qt.size(22, 22)
+                    Icon {
+                        glyph: "monitor"
+                        size: 22
+                        color: Theme.text
                         opacity: 0.75
                     }
 
@@ -153,6 +155,7 @@ Item {
                             implicitHeight: side
                             radius: Theme.radius
                             color: "white"
+                            border.color: Theme.border
 
                             QrCode {
                                 anchors.fill: parent
@@ -314,10 +317,11 @@ Item {
                 elide: Text.ElideRight
             }
 
-            Image {
+            Icon {
                 Layout.rightMargin: 16
-                source: Qt.resolvedUrl("icons/copy.svg")
-                sourceSize: Qt.size(20, 20)
+                glyph: "copy"
+                size: 20
+                color: Theme.text
                 opacity: 0.6
             }
 

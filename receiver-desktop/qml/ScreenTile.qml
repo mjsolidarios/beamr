@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import QtQuick.Window
 import Beamr.Receiver
 
 // One screen in the window: how to connect while it waits, the phone's
@@ -14,6 +16,10 @@ Item {
     property bool focused
     property bool fullScreen
     property bool controlsVisible: true
+    // Crop to fill instead of showing the whole picture.
+    property bool fill
+    // Showing in a window of its own (e.g. on a projector).
+    property bool poppedOut
 
     signal copied()
     signal removeRequested()
@@ -24,9 +30,14 @@ Item {
     // The pointer is here: keyboard shortcuts act on this screen.
     signal activated()
 
+    // From wherever the picture is showing.
     function capture() {
-        castView.capture()
+        if (root.poppedOut && popOut.item)
+            popOut.item.capture()
+        else
+            castView.capture()
     }
+
 
     function wakeControls() {
         controlsVisible = true
@@ -40,6 +51,8 @@ Item {
         function onCastingChanged() {
             if (root.screen.casting)
                 root.wakeControls()
+            else
+                root.poppedOut = false // the picture comes back into the grid
         }
     }
 
@@ -72,8 +85,82 @@ Item {
             anchors.margins: root.single ? 0 : 1
             screen: root.screen
             showRecordingBadge: true
+            fill: root.fill
+            active: !root.poppedOut
+            visible: !root.poppedOut
             onScreenshotSaved: path => root.screenshotSaved(path)
             onScreenshotFailed: root.screenshotFailed()
+        }
+
+        // While the picture is in its own window.
+        ColumnLayout {
+            anchors.centerIn: parent
+            visible: root.poppedOut
+            spacing: 12
+
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("%1 is showing in its own window").arg(root.screen.deviceName)
+                color: Theme.textMuted
+                font.pixelSize: 15
+            }
+
+            PillButton {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Bring back")
+                onClicked: root.poppedOut = false
+            }
+        }
+    }
+
+    Loader {
+        id: popOut
+
+        active: root.poppedOut
+
+        sourceComponent: Window {
+            id: popWindow
+
+            function capture() {
+                popView.capture()
+            }
+
+            width: 960
+            height: 600
+            minimumWidth: 320
+            minimumHeight: 240
+            visible: true
+            color: "black"
+            title: qsTr("beamr · %1").arg(root.screen.deviceName)
+            onClosing: root.poppedOut = false
+
+            CastView {
+                id: popView
+
+                anchors.fill: parent
+                screen: root.screen
+                showRecordingBadge: true
+                fill: root.fill
+                onScreenshotSaved: path => root.screenshotSaved(path)
+                onScreenshotFailed: root.screenshotFailed()
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onDoubleClicked: popWindow.visibility === Window.FullScreen ? popWindow.showNormal()
+                                                                            : popWindow.showFullScreen()
+            }
+
+            Shortcut {
+                sequence: "F11"
+                onActivated: popWindow.visibility === Window.FullScreen ? popWindow.showNormal()
+                                                                        : popWindow.showFullScreen()
+            }
+
+            Shortcut {
+                sequence: "Esc"
+                onActivated: popWindow.visibility === Window.FullScreen ? popWindow.showNormal() : popWindow.close()
+            }
         }
     }
 
@@ -114,7 +201,7 @@ Item {
         implicitWidth: chipLabel.implicitWidth + 24
         implicitHeight: 30
         radius: height / 2
-        color: "#cc171a21"
+        color: Theme.overlayBar
         border.color: Theme.border
 
         Behavior on opacity {
@@ -159,9 +246,13 @@ Item {
         fullScreen: root.fullScreen
         multiScreen: !root.single
         focused: root.focused
+        fill: root.fill
+        poppedOut: root.poppedOut
         onScreenshotRequested: root.capture()
         onFullScreenRequested: root.fullScreenRequested()
         onFocusRequested: root.focusRequested()
+        onFillToggled: root.fill = !root.fill
+        onPopOutRequested: root.poppedOut = !root.poppedOut
 
         Behavior on opacity {
             NumberAnimation { duration: 200 }

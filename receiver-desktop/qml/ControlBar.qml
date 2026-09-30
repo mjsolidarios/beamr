@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import Beamr.Receiver
 
 // Tools for one screen's cast.
@@ -10,18 +11,22 @@ Rectangle {
     // With several screens: whether this one fills the window.
     property bool multiScreen
     property bool focused
+    property bool fill
+    property bool poppedOut
     readonly property alias hovered: hover.hovered
 
     signal screenshotRequested()
     signal fullScreenRequested()
     signal focusRequested()
+    signal fillToggled()
+    signal popOutRequested()
 
     implicitWidth: row.implicitWidth + 16
     implicitHeight: 56
     width: implicitWidth
     height: implicitHeight
     radius: height / 2
-    color: "#eb171a21"
+    color: Theme.overlayBar
     border.color: Theme.border
 
     HoverHandler {
@@ -59,6 +64,50 @@ Rectangle {
             onClicked: ReceiverController.audioScreen = root.screen.audible ? null : root.screen
         }
 
+        // This phone's volume, while its sound is the one playing.
+        Slider {
+            id: volumeSlider
+
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.screen.hasAudio && root.screen.audible
+            width: 96
+            from: 0
+            to: 1
+            value: root.screen.volume
+            focusPolicy: Qt.NoFocus
+            onMoved: root.screen.volume = value
+            Accessible.name: qsTr("Volume")
+
+            ToolTip.visible: hovered || pressed
+            ToolTip.text: qsTr("Volume %1%").arg(Math.round(value * 100))
+            ToolTip.delay: 400
+
+            background: Rectangle {
+                x: volumeSlider.leftPadding
+                y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                width: volumeSlider.availableWidth
+                height: 4
+                radius: 2
+                color: Theme.border
+
+                Rectangle {
+                    width: volumeSlider.visualPosition * parent.width
+                    height: parent.height
+                    radius: 2
+                    color: Theme.accent
+                }
+            }
+
+            handle: Rectangle {
+                x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
+                y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                implicitWidth: 14
+                implicitHeight: 14
+                radius: 7
+                color: volumeSlider.pressed ? Theme.accent : Theme.text
+            }
+        }
+
         IconButton {
             iconName: "camera"
             tip: qsTr("Screenshot (S)")
@@ -70,6 +119,19 @@ Rectangle {
             width: 1
             height: 24
             color: Theme.border
+        }
+
+        IconButton {
+            iconName: root.fill ? "scan" : "crop"
+            tip: root.fill ? qsTr("Show the whole picture") : qsTr("Fill the space (crops the edges)")
+            onClicked: root.fillToggled()
+        }
+
+        IconButton {
+            iconName: "pop-out"
+            checked: root.poppedOut
+            tip: root.poppedOut ? qsTr("Bring back into this window") : qsTr("Open in its own window")
+            onClicked: root.popOutRequested()
         }
 
         IconButton {

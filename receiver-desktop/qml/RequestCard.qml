@@ -43,12 +43,13 @@ Rectangle {
                 implicitWidth: 44
                 implicitHeight: 44
                 radius: 22
-                color: "#263ec6e0"
+                color: Theme.accentSoft
 
-                Image {
+                Icon {
                     anchors.centerIn: parent
-                    source: Qt.resolvedUrl("icons/smartphone.svg")
-                    sourceSize: Qt.size(22, 22)
+                    glyph: "smartphone"
+                    size: 22
+                    color: Theme.accent
                 }
             }
 

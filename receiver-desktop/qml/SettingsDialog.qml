@@ -76,6 +76,39 @@ Dialog {
                 }
             }
 
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                SectionLabel {
+                    text: qsTr("Appearance")
+                }
+
+                // One choice of three, like the phone app's.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Repeater {
+                        model: [
+                            { value: Qt.Unknown, label: qsTr("System") },
+                            { value: Qt.Light, label: qsTr("Light") },
+                            { value: Qt.Dark, label: qsTr("Dark") }
+                        ]
+
+                        delegate: PillButton {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            kind: ReceiverController.colorScheme === modelData.value ? "primary" : "secondary"
+                            text: modelData.label
+                            focusPolicy: Qt.TabFocus
+                            onClicked: ReceiverController.colorScheme = modelData.value
+                        }
+                    }
+                }
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
@@ -137,9 +170,10 @@ Dialog {
 
                         Layout.fillWidth: true
 
-                        Image {
-                            source: Qt.resolvedUrl("icons/smartphone.svg")
-                            sourceSize: Qt.size(18, 18)
+                        Icon {
+                            glyph: "smartphone"
+                            size: 18
+                            color: Theme.text
                             opacity: 0.6
                         }
 
@@ -156,6 +190,45 @@ Dialog {
                             onClicked: ReceiverController.forgetDevice(trustedRow.modelData.deviceId)
                         }
                     }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                SectionLabel {
+                    text: qsTr("Sound output")
+                }
+
+                ComboBox {
+                    id: outputBox
+
+                    Layout.fillWidth: true
+                    model: ReceiverController.audioOutputs
+                    textRole: "name"
+                    valueRole: "id"
+                    focusPolicy: Qt.TabFocus
+                    Accessible.name: qsTr("Sound output")
+                    // Follows the setting, and the list as devices come and go.
+                    currentIndex: {
+                        const outputs = ReceiverController.audioOutputs
+                        const index = outputs.findIndex(o => o.id === ReceiverController.audioOutput)
+                        return index >= 0 ? index : 0
+                    }
+                    onActivated: index => ReceiverController.audioOutput = outputs(index)
+
+                    function outputs(index) {
+                        return ReceiverController.audioOutputs[index].id
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Where phones' sound plays. One phone plays at a time; pick which with its speaker button.")
+                    color: Theme.textMuted
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
                 }
             }
 

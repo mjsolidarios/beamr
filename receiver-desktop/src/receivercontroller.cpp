@@ -1,6 +1,9 @@
 #include "receivercontroller.h"
 
+#include <QAudioDevice>
 #include <QDir>
+#include <QGuiApplication>
+#include <QStyleHints>
 #include <QFile>
 #include <QFileInfo>
 #include <QNetworkInterface>
@@ -30,6 +33,8 @@ constexpr int kMaxScreens = 4;
 const QString kNameKey = QStringLiteral("receiver/name");
 const QString kRequireApprovalKey = QStringLiteral("receiver/requireApproval");
 const QString kTrustedKey = QStringLiteral("trustedDevices");
+const QString kAudioOutputKey = QStringLiteral("audio/output");
+const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
 
 // BEAMR_PORT overrides the port, e.g. to run a second receiver on one computer.
 quint16 controlPort()
@@ -80,6 +85,13 @@ ReceiverController::ReceiverController(QObject *parent)
     QSettings settings;
     m_receiverName = settings.value(kNameKey, defaultReceiverName()).toString();
     m_requireApproval = settings.value(kRequireApprovalKey, true).toBool();
+    m_audioOutput = settings.value(kAudioOutputKey).toString();
+    m_colorScheme = settings.value(kColorSchemeKey, int(Qt::ColorScheme::Unknown)).toInt();
+    // Also for the native title bars, where the platform supports it.
+    QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme(m_colorScheme));
+
+    m_mediaDevices = new QMediaDevices(this);
+    connect(m_mediaDevices, &QMediaDevices::audioOutputsChanged, this, &ReceiverController::audioOutputsChanged);
 
     const int count = settings.beginReadArray(kTrustedKey);
     for (int i = 0; i < count; ++i) {
@@ -130,10 +142,41 @@ int ReceiverController::maxScreens() const
     return kMaxScreens;
 }
 
+QVariantList ReceiverController::audioOutputs() const
+{
+    QVariantList outputs{QVariantMap{{"id", QString()}, {"name", tr("System default")}}};
+    const QList<QAudioDevice> devices = QMediaDevices::audioOutputs();
+    for (const QAudioDevice &device : devices)
+        outputs.append(QVariantMap{{"id", QString::fromUtf8(device.id())}, {"name", device.description()}});
+    return outputs;
+}
+
+void ReceiverController::setColorScheme(int scheme)
+{
+    if (scheme == m_colorScheme)
+        return;
+    m_colorScheme = scheme;
+    QSettings().setValue(kColorSchemeKey, scheme);
+    QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme(scheme));
+    emit colorSchemeChanged();
+}
+
+void ReceiverController::setAudioOutput(const QString &id)
+{
+    if (id == m_audioOutput)
+        return;
+    m_audioOutput = id;
+    QSettings().setValue(kAudioOutputKey, id);
+    for (CastScreen *screen : std::as_const(m_screens))
+        screen->setAudioDevice(id.toUtf8());
+    emit audioOutputChanged();
+}
+
 CastScreen *ReceiverController::appendScreen()
 {
     auto *screen = new CastScreen(int(m_screens.size()) + 1, this);
     screen->setRecordingsFolder(m_recordingsDir);
+    screen->setAudioDevice(m_audioOutput.toUtf8());
     connect(screen, &CastScreen::notify, this, &ReceiverController::notify);
     connect(screen, &CastScreen::recordingSaved, m_recordings, &RecordingsModel::refresh);
     connect(screen, &CastScreen::keyFrameNeeded, this, &ReceiverController::keyFrameNeeded);

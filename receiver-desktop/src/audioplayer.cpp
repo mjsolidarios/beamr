@@ -79,7 +79,17 @@ void AudioPlayer::closeDecoder()
 
 bool AudioPlayer::openOutput()
 {
-    const QAudioDevice device = QMediaDevices::defaultAudioOutput();
+    // The chosen output if it's still there, else the system's default.
+    QAudioDevice device = QMediaDevices::defaultAudioOutput();
+    if (!m_deviceId.isEmpty()) {
+        const QList<QAudioDevice> outputs = QMediaDevices::audioOutputs();
+        for (const QAudioDevice &output : outputs) {
+            if (output.id() == m_deviceId) {
+                device = output;
+                break;
+            }
+        }
+    }
     const QAudioFormat format = outputFormat();
     if (device.isNull() || !device.isFormatSupported(format)) {
         qCWarning(lcCodec) << "no audio output for 48 kHz stereo float; phones will be silent";
@@ -87,9 +97,19 @@ bool AudioPlayer::openOutput()
     }
     m_sink = std::make_unique<QAudioSink>(device, format);
     m_sink->setBufferSize(format.bytesForDuration(kBufferMs * 1000));
-    m_sink->setVolume(m_muted ? 0.0 : 1.0);
+    m_sink->setVolume(m_volume);
     m_output = m_sink->start();
     return m_output != nullptr;
+}
+
+void AudioPlayer::setDevice(const QByteArray &id)
+{
+    if (id == m_deviceId)
+        return;
+    m_deviceId = id;
+    // Reopened on the next packet, on the new device.
+    closeOutput();
+    m_failed = false;
 }
 
 void AudioPlayer::closeOutput()
@@ -100,11 +120,11 @@ void AudioPlayer::closeOutput()
     m_sink.reset();
 }
 
-void AudioPlayer::setMuted(bool muted)
+void AudioPlayer::setVolume(qreal volume)
 {
-    m_muted = muted;
+    m_volume = volume;
     if (m_sink)
-        m_sink->setVolume(muted ? 0.0 : 1.0);
+        m_sink->setVolume(volume);
 }
 
 void AudioPlayer::reset()

@@ -25,7 +25,10 @@ public:
     ~AudioPlayer() override;
 
     void decode(const QByteArray &packet);
-    void setMuted(bool muted);
+    // 0 to 1; 0 is silent.
+    void setVolume(qreal volume);
+    // A QAudioDevice id; empty for the system default.
+    void setDevice(const QByteArray &id);
     // Stops playback and forgets the stream; the next packet starts afresh.
     void reset();
 
@@ -42,6 +45,7 @@ private:
 
     std::unique_ptr<QAudioSink> m_sink;
     QIODevice *m_output = nullptr;
-    bool m_muted = false;
+    qreal m_volume = 1.0;
+    QByteArray m_deviceId;
     QByteArray m_pcm;
 };

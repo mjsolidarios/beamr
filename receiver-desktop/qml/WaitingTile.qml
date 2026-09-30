@@ -68,6 +68,7 @@ Rectangle {
             implicitHeight: column.codeSize
             radius: Theme.radiusSmall
             color: "white"
+            border.color: Theme.border
 
             QrCode {
                 anchors.fill: parent

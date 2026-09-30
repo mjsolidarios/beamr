@@ -273,10 +273,26 @@ void CastScreen::setAudible(bool audible)
     emit audibleChanged();
 }
 
+void CastScreen::setVolume(qreal volume)
+{
+    volume = std::clamp<qreal>(volume, 0.0, 1.0);
+    if (qFuzzyCompare(volume, m_volume))
+        return;
+    m_volume = volume;
+    updateMute();
+    emit volumeChanged();
+}
+
+void CastScreen::setAudioDevice(const QByteArray &id)
+{
+    QMetaObject::invokeMethod(m_audio, [audio = m_audio, id] { audio->setDevice(id); });
+}
+
 void CastScreen::updateMute()
 {
     // A paused picture with live sound would be confusing; pause both.
-    QMetaObject::invokeMethod(m_audio, [audio = m_audio, muted = !m_audible || m_paused] { audio->setMuted(muted); });
+    const qreal volume = m_audible && !m_paused ? m_volume : 0.0;
+    QMetaObject::invokeMethod(m_audio, [audio = m_audio, volume] { audio->setVolume(volume); });
 }
 
 void CastScreen::showFrame(const QVideoFrame &frame, int generation)

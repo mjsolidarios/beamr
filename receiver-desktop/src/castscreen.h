@@ -44,6 +44,8 @@ class CastScreen : public QObject
     Q_PROPERTY(bool hasAudio READ hasAudio NOTIFY hasAudioChanged)
     // Its sound plays; only one screen's does at a time (ReceiverController).
     Q_PROPERTY(bool audible READ audible NOTIFY audibleChanged)
+    // This screen's own volume, 0 to 1, when its sound plays.
+    Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
 
 public:
     explicit CastScreen(int number, QObject *parent = nullptr);
@@ -77,6 +79,10 @@ public:
     bool hasAudio() const { return m_hasAudio; }
     bool audible() const { return m_audible; }
     void setAudible(bool audible);
+    qreal volume() const { return m_volume; }
+    void setVolume(qreal volume);
+    // A QAudioDevice id; empty for the system default.
+    void setAudioDevice(const QByteArray &id);
 
     // Shows `request`'s phone here, replacing whoever was casting.
     void start(const ConnectionRequest &request);
@@ -109,6 +115,7 @@ signals:
     void hasVideoChanged();
     void hasAudioChanged();
     void audibleChanged();
+    void volumeChanged();
     // For ReceiverController: toasts, and hanging up on the phone.
     void notify(const QString &message);
     void castStopped(const QString &requestId);
@@ -154,4 +161,5 @@ private:
     QSize m_videoSize;
     bool m_hasAudio = false;
     bool m_audible = false;
+    qreal m_volume = 1.0;
 };

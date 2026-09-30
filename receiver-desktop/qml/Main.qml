@@ -175,10 +175,11 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     spacing: 8
 
-                    Image {
+                    Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        source: Qt.resolvedUrl("icons/plus.svg")
-                        sourceSize: Qt.size(28, 28)
+                        glyph: "plus"
+                        size: 28
+                        color: Theme.text
                         opacity: addTile.hovered ? 1 : 0.6
                     }
 

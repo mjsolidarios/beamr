@@ -51,6 +51,7 @@ qt_add_qml_module(beamr_receiver_ui
     QML_FILES
         qml/CastView.qml
         qml/ControlBar.qml
+        qml/Icon.qml
         qml/IconButton.qml
         qml/IdleView.qml
         qml/Main.qml
@@ -70,6 +71,7 @@ qt_add_qml_module(beamr_receiver_ui
         qml/icons/camera.svg
         qml/icons/circle-dot.svg
         qml/icons/copy.svg
+        qml/icons/crop.svg
         qml/icons/download.svg
         qml/icons/film.svg
         qml/icons/focus.svg
@@ -81,7 +83,9 @@ qt_add_qml_module(beamr_receiver_ui
         qml/icons/pause.svg
         qml/icons/play.svg
         qml/icons/plus.svg
+        qml/icons/pop-out.svg
         qml/icons/record.svg
+        qml/icons/scan.svg
         qml/icons/settings.svg
         qml/icons/smartphone.svg
         qml/icons/trash.svg

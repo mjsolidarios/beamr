@@ -10,6 +10,18 @@ Item {
 
     required property CastScreen screen
     property bool showRecordingBadge
+    // Fill the area, cropping the edges, instead of showing it all.
+    property bool fill
+    // Where the screen's video goes; only one view can show it at a time
+    // (the grid, or the window it's popped out into).
+    property bool active: true
+
+    function attach() {
+        if (active)
+            screen.videoSink = videoOutput.videoSink
+    }
+
+    onActiveChanged: attach()
 
     signal screenshotSaved(string path)
     signal screenshotFailed()
@@ -46,8 +58,8 @@ Item {
 
             anchors.fill: parent
             visible: !root.screen.demo
-            fillMode: VideoOutput.PreserveAspectFit
-            Component.onCompleted: root.screen.videoSink = videoOutput.videoSink
+            fillMode: root.fill ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
+            Component.onCompleted: root.attach()
         }
 
         Label {

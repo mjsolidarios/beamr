@@ -1,29 +1,40 @@
 pragma Singleton
 import QtQuick
+import Beamr.Receiver
 
+// Dark by default, with a light variant; follows the system unless Settings
+// picks one. The video area stays black either way.
 QtObject {
-    readonly property color bg: "#0f1115"
-    readonly property color surface: "#171a21"
-    readonly property color surfaceRaised: "#1f232c"
-    readonly property color border: "#2a2f3a"
-    readonly property color hover: "#1affffff"
-    readonly property color pressed: "#2effffff"
+    readonly property bool dark: ReceiverController.colorScheme === Qt.Dark
+                                 || (ReceiverController.colorScheme !== Qt.Light
+                                     && Application.styleHints.colorScheme !== Qt.Light)
 
-    readonly property color text: "#e8eaf0"
-    readonly property color textMuted: "#9aa3b2"
-    readonly property color textFaint: "#5c6473"
+    readonly property color bg: dark ? "#0f1115" : "#f4f6f9"
+    readonly property color surface: dark ? "#171a21" : "#ffffff"
+    readonly property color surfaceRaised: dark ? "#1f232c" : "#ffffff"
+    readonly property color border: dark ? "#2a2f3a" : "#dde2ea"
+    readonly property color hover: dark ? "#1affffff" : "#0f000000"
+    readonly property color pressed: dark ? "#2effffff" : "#1a000000"
+    // Controls floating over the picture.
+    readonly property color overlayBar: dark ? "#eb171a21" : "#f2ffffff"
 
-    readonly property color accent: "#3ec6e0"
-    readonly property color accentInk: "#06242b"
-    readonly property color danger: "#ef5350"
-    readonly property color record: "#ff4757"
-    readonly property color warning: "#f5b942"
-    readonly property color success: "#3ecf8e"
+    readonly property color text: dark ? "#e8eaf0" : "#131722"
+    readonly property color textMuted: dark ? "#9aa3b2" : "#566071"
+    readonly property color textFaint: dark ? "#5c6473" : "#8a93a3"
+
+    // Deeper cyan on light backgrounds keeps text and borders legible.
+    readonly property color accent: dark ? "#3ec6e0" : "#0b8ca6"
+    readonly property color accentSoft: dark ? "#263ec6e0" : "#1a0b8ca6"
+    readonly property color accentInk: dark ? "#06242b" : "#ffffff"
+    readonly property color danger: dark ? "#ef5350" : "#d6342f"
+    readonly property color record: dark ? "#ff4757" : "#e0283a"
+    readonly property color warning: dark ? "#f5b942" : "#a86a12"
+    readonly property color success: dark ? "#3ecf8e" : "#138a55"
     // The "Add screen" button: a quiet green, stronger on hover.
-    readonly property color successSoft: "#143ecf8e"
-    readonly property color successHover: "#243ecf8e"
-    readonly property color successPressed: "#343ecf8e"
-    readonly property color successBorder: "#663ecf8e"
+    readonly property color successSoft: dark ? "#143ecf8e" : "#12138a55"
+    readonly property color successHover: dark ? "#243ecf8e" : "#20138a55"
+    readonly property color successPressed: dark ? "#343ecf8e" : "#30138a55"
+    readonly property color successBorder: dark ? "#663ecf8e" : "#66138a55"
 
     readonly property int radius: 12
     readonly property int radiusSmall: 8
