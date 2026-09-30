@@ -140,6 +140,28 @@ Drawer {
 
         SectionLabel {
             Layout.topMargin: 28
+            text: qsTr("Sound")
+        }
+
+        SoundSwitch {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            Layout.leftMargin: -6
+            Layout.rightMargin: -6
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 2
+            visible: SenderController.castState === SenderController.On
+            text: qsTr("Applies the next time you start casting.")
+            color: Theme.textFaint
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
+        }
+
+        SectionLabel {
+            Layout.topMargin: 28
             text: qsTr("This phone")
         }
 

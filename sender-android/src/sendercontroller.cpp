@@ -38,6 +38,7 @@ const QString kDeviceIdKey = QStringLiteral("device/id");
 const QString kDeviceNameKey = QStringLiteral("device/name");
 const QString kRecentKey = QStringLiteral("recentReceivers");
 const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
+const QString kShareAudioKey = QStringLiteral("cast/shareAudio");
 
 // The one controller the capture service reports to. QML creates it once.
 SenderController *s_instance = nullptr;
@@ -179,6 +180,8 @@ SenderController::SenderController(QObject *parent)
                                     {"name", settings.value("name").toString()}});
     }
     settings.endArray();
+
+    m_shareAudio = settings.value(kShareAudioKey, true).toBool();
 
     QGuiApplication::styleHints()->setColorScheme(
         Qt::ColorScheme(settings.value(kColorSchemeKey, int(Qt::ColorScheme::Unknown)).toInt()));
@@ -360,8 +363,9 @@ void SenderController::onSessionEnded(ReceiverSession *session, const QString &m
 void SenderController::openVideo(ReceiverSession *session)
 {
     QMetaObject::invokeMethod(m_stream, [stream = m_stream, id = session->id(), host = session->host(),
-                                         port = session->port(), token = session->streamToken()] {
-        stream->open(id, host, port, token);
+                                         port = session->port(), token = session->streamToken(),
+                                         audio = session->playsAudio()] {
+        stream->open(id, host, port, token, audio);
     });
 }
 
@@ -373,8 +377,9 @@ void SenderController::startCasting()
     clearMessage();
     setCastState(Starting);
     QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "requestCapture",
-                                       "(Landroid/content/Context;)V",
-                                       QNativeInterface::QAndroidApplication::context().object());
+                                       "(Landroid/content/Context;Z)V",
+                                       QNativeInterface::QAndroidApplication::context().object(),
+                                       jboolean(m_shareAudio));
 #else
     setMessage(tr("Screen casting needs the Android app."), true);
 #endif
@@ -395,6 +400,7 @@ void SenderController::endCapture()
     m_captureRunning = false;
     QMetaObject::invokeMethod(m_stream, &StreamSender::closeAll);
     setCastState(Off);
+    setAudioState({});
     if (m_castSize.isValid()) {
         m_castSize = {};
         emit castSizeChanged();
@@ -426,6 +432,23 @@ void SenderController::captureStarted(QSize size)
                 openVideo(session);
         }
     }
+}
+
+void SenderController::setAudioState(const QString &state)
+{
+    if (state == m_audioState)
+        return;
+    m_audioState = state;
+    emit audioStateChanged();
+}
+
+void SenderController::setShareAudio(bool share)
+{
+    if (share == m_shareAudio)
+        return;
+    m_shareAudio = share;
+    QSettings().setValue(kShareAudioKey, share);
+    emit shareAudioChanged();
 }
 
 void SenderController::captureStopped(const QString &reason)
@@ -632,6 +655,26 @@ struct CaptureNatives
         });
     }
 
+    static void audio(JNIEnv *env, jclass, jobject buffer, jint offset, jint size, jlong ptsUs)
+    {
+        SenderController *controller = s_instance;
+        const auto *base = static_cast<const char *>(env->GetDirectBufferAddress(buffer));
+        if (!controller || !base || size <= 0)
+            return;
+        const QByteArray data(base + offset, size);
+        StreamSender *stream = controller->m_stream;
+        QMetaObject::invokeMethod(stream, [stream, data, ptsUs = qint64(ptsUs)] { stream->sendAudio(data, ptsUs); });
+    }
+
+    static void audioState(JNIEnv *, jclass, jstring state)
+    {
+        const QString text = QJniObject(state).toString();
+        QMetaObject::invokeMethod(qApp, [text] {
+            if (s_instance && s_instance->m_castState != SenderController::Off)
+                s_instance->setAudioState(text);
+        });
+    }
+
     static void frame(JNIEnv *env, jclass, jobject buffer, jint offset, jint size, jlong ptsUs, jint flags)
     {
         SenderController *controller = s_instance;
@@ -691,6 +734,8 @@ void registerCaptureNatives()
             {"nativeCaptureStarted", "(II)V", reinterpret_cast<void *>(&CaptureNatives::captureStarted)},
             {"nativeCaptureStopped", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::captureStopped)},
             {"nativeFrame", "(Ljava/nio/ByteBuffer;IIJI)V", reinterpret_cast<void *>(&CaptureNatives::frame)},
+            {"nativeAudio", "(Ljava/nio/ByteBuffer;IIJ)V", reinterpret_cast<void *>(&CaptureNatives::audio)},
+            {"nativeAudioState", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::audioState)},
         });
     if (!ok)
         qCWarning(lcBeamr) << "can't register capture callbacks; casting won't work";

@@ -1,6 +1,7 @@
 #include "controlserver.h"
 
 #include <QHostAddress>
+#include <QJsonArray>
 #include <QJsonValue>
 #include <QPointer>
 #include <QTcpSocket>
@@ -139,7 +140,9 @@ void ControlServer::handleHello(QTcpSocket *socket, const QJsonObject &hello)
     socket->setProperty(kRequestIdProperty, requestId);
     m_peers.insert(requestId, socket);
 
-    send(socket, {{"type", protocol::kWelcome}, {"name", m_controller->receiverName()}});
+    send(socket, {{"type", protocol::kWelcome},
+                  {"name", m_controller->receiverName()},
+                  {"audio", QJsonArray{protocol::kCodecOpus}}});
     m_controller->handleIncomingRequest(requestId, device, displayAddress(socket->peerAddress()),
                                         hello.value("screen").toString().left(32));
 }
@@ -179,7 +182,10 @@ void ControlServer::readFrames(QTcpSocket *socket)
         if (socket->bytesAvailable() < protocol::FrameHeader::kSize + qint64(header.size))
             return;
         socket->skip(protocol::FrameHeader::kSize);
-        m_controller->videoPacket(requestId, socket->read(header.size));
+        if (header.flags & protocol::kFrameAudio)
+            m_controller->audioPacket(requestId, socket->read(header.size));
+        else
+            m_controller->videoPacket(requestId, socket->read(header.size));
     }
 }
 

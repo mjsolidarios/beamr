@@ -1,5 +1,6 @@
 #include "receiversession.h"
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QUuid>
 
@@ -125,6 +126,7 @@ void ReceiverSession::onReadyRead()
         if (type == QLatin1StringView(protocol::kWelcome)) {
             const QString name = message->value("name").toString().trimmed();
             m_name = name.isEmpty() ? m_endpoint : name;
+            m_playsAudio = message->value("audio").toArray().contains(QLatin1StringView(protocol::kCodecOpus));
             m_timeout.start(kApprovalTimeoutMs);
             setState(AwaitingApproval);
             emit changed();

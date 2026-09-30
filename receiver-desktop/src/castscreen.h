@@ -9,6 +9,7 @@
 
 #include "connectionrequestmodel.h"
 
+class AudioPlayer;
 class QVideoFrame;
 class VideoDecoder;
 
@@ -34,6 +35,10 @@ class CastScreen : public QObject
     Q_PROPERTY(int recordingSeconds READ recordingSeconds NOTIFY recordingSecondsChanged)
     Q_PROPERTY(QVideoSink *videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
     Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY hasVideoChanged)
+    // The phone is sending sound.
+    Q_PROPERTY(bool hasAudio READ hasAudio NOTIFY hasAudioChanged)
+    // Its sound plays; only one screen's does at a time (ReceiverController).
+    Q_PROPERTY(bool audible READ audible NOTIFY audibleChanged)
 
 public:
     explicit CastScreen(int number, QObject *parent = nullptr);
@@ -57,11 +62,15 @@ public:
     QVideoSink *videoSink() const { return m_videoSink; }
     void setVideoSink(QVideoSink *sink);
     bool hasVideo() const { return m_hasVideo; }
+    bool hasAudio() const { return m_hasAudio; }
+    bool audible() const { return m_audible; }
+    void setAudible(bool audible);
 
     // Shows `request`'s phone here, replacing whoever was casting.
     void start(const ConnectionRequest &request);
     void videoPacket(const QByteArray &packet);
     void videoEnded();
+    void audioPacket(const QByteArray &packet);
     // Once a second, for the recording clock.
     void tick();
 
@@ -78,6 +87,8 @@ signals:
     void recordingSecondsChanged();
     void videoSinkChanged();
     void hasVideoChanged();
+    void hasAudioChanged();
+    void audibleChanged();
     // For ReceiverController: toasts, and hanging up on the phone.
     void notify(const QString &message);
     void castStopped(const QString &requestId);
@@ -87,6 +98,8 @@ private:
     void stopRecording();
     void showFrame(const QVideoFrame &frame, int generation);
     void resetVideo();
+    void resetAudio();
+    void updateMute();
 
     const QString m_id;
     int m_number;
@@ -103,8 +116,11 @@ private:
     bool m_hasVideo = false;
     // Bumped whenever the picture is cleared; older frames are dropped.
     int m_videoGeneration = 0;
-    // Each screen decodes on its own thread, so one busy stream can't
-    // stall the others.
+    // Each screen decodes (and plays its sound) on its own thread, so one
+    // busy stream can't stall the others.
     QThread m_decoderThread;
     VideoDecoder *m_decoder = nullptr;
+    AudioPlayer *m_audio = nullptr;
+    bool m_hasAudio = false;
+    bool m_audible = false;
 };

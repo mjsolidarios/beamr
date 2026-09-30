@@ -113,10 +113,37 @@ Rectangle {
         Label {
             Layout.topMargin: 6
             visible: root.live && SenderController.castSize.width > 0
-            text: qsTr("%1 × %2 · 60 fps").arg(SenderController.castSize.width).arg(SenderController.castSize.height)
+            text: {
+                const size = qsTr("%1 × %2 · 60 fps").arg(SenderController.castSize.width)
+                                                      .arg(SenderController.castSize.height)
+                return SenderController.audioState === "on" ? qsTr("%1 · with sound").arg(size) : size
+            }
             color: Theme.textFaint
             font.pixelSize: 13
             font.features: { "tnum": 1 }
+        }
+
+        // Why there's no sound, when it was asked for.
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            visible: root.live && (SenderController.audioState === "denied"
+                                   || SenderController.audioState === "unavailable")
+            text: SenderController.audioState === "denied"
+                  ? qsTr("No sound: beamr needs permission to record audio. Allow it in Android settings, then cast again.")
+                  : qsTr("This phone can't cast sound, so only the picture is shared.")
+            color: Theme.textMuted
+            font.pixelSize: 13
+            wrapMode: Text.Wrap
+        }
+
+        // Sound is chosen before casting; changing it means asking Android again.
+        SoundSwitch {
+            Layout.fillWidth: true
+            Layout.topMargin: 12
+            Layout.leftMargin: -6
+            Layout.rightMargin: -6
+            visible: !root.live && root.castState !== SenderController.Starting
         }
 
         PillButton {

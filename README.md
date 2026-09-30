@@ -3,10 +3,11 @@
 Low-latency screen casting from an Android phone to computers on the same Wi-Fi.
 
 - **sender-android**: the phone app. It captures the screen with MediaProjection,
-  encodes H.264 in hardware and streams it to up to 4 computers at once.
+  encodes H.264 in hardware and streams it to up to 4 computers at once. It can
+  also cast what apps play, as Opus audio.
 - **receiver-desktop**: the computer app. It decodes and shows up to 4 phones
-  side by side, each on its own screen. It can also pause, record and take
-  screenshots.
+  side by side, each on its own screen. It plays one phone's sound at a time,
+  and can also pause, record and take screenshots.
 - **common**: the wire protocol and connect-link format both apps share.
 
 Both apps are Qt 6 / QML.
@@ -21,6 +22,12 @@ Both apps are Qt 6 / QML.
 
 Use **Add screen** on the computer to let another phone cast next to the first.
 Double-click a screen, or use its focus button, to show only that one.
+
+**Sound:** turn on **Cast sound** on the phone before casting. Android then asks
+for permission to record audio. beamr only captures what apps play, never the
+microphone, and calls and apps that block capture stay silent. On the computer,
+only one phone's sound plays at a time: the first to cast. Use a screen's
+speaker button, or press M, to switch the sound to that phone or mute it.
 
 The QR code carries a link like:
 

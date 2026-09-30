@@ -11,7 +11,7 @@ class QIODevice;
 // objects over TCP on kDefaultControlPort.
 //
 //   sender   -> receiver  {"type":"hello","version":1,"deviceId":..,"name":..,"model":..,"screen":..}
-//   receiver -> sender    {"type":"welcome","name":<receiver name>}     right after hello
+//   receiver -> sender    {"type":"welcome","name":<receiver name>,"audio":["opus"]}   right after hello
 //   receiver -> sender    {"type":"answer","accepted":true|false,"reason":..,"streamToken":..}
 //   either   -> other     {"type":"bye"}, then the connection closes
 //
@@ -23,9 +23,14 @@ class QIODevice;
 // accepted one carries a token for the media stream.
 //
 // Media stream: a second TCP connection to the same port. The sender opens
-// it with one line, {"type":"stream","token":..,"codec":"h264"}, then sends
-// frames, each a FrameHeader followed by `size` bytes of Annex B H.264.
-// Closing it stops the picture but keeps the session.
+// it with one line, {"type":"stream","token":..,"codec":"h264","audio":"opus"},
+// then sends frames, each a FrameHeader followed by `size` bytes: Annex B
+// H.264, or with kFrameAudio set, one Opus packet (48 kHz stereo). Closing
+// it stops the picture and sound but keeps the session.
+//
+// "audio" in welcome lists the audio codecs a receiver plays; a sender only
+// sends sound to receivers that list one, and says so with "audio" in its
+// stream line. Both are optional, so older apps carry on without sound.
 namespace beamr::protocol {
 
 inline constexpr int kVersion = 1;
@@ -39,14 +44,19 @@ inline constexpr char kAnswer[] = "answer";
 inline constexpr char kBye[] = "bye";
 inline constexpr char kStream[] = "stream";
 inline constexpr char kCodecH264[] = "h264";
+inline constexpr char kCodecOpus[] = "opus";
+inline constexpr int kAudioSampleRate = 48'000;
+inline constexpr int kAudioChannels = 2;
 
 inline constexpr char kReasonDeclined[] = "declined";
 inline constexpr char kReasonExpired[] = "expired";
 inline constexpr char kReasonUnsupported[] = "unsupported";
 
-// Frame flags; the same bits as Android's MediaCodec.BUFFER_FLAG_*.
+// Frame flags; the low bits are Android's MediaCodec.BUFFER_FLAG_*.
 inline constexpr quint8 kFrameKey = 0x1;
 inline constexpr quint8 kFrameConfig = 0x2;
+// Not a video frame: an audio packet.
+inline constexpr quint8 kFrameAudio = 0x80;
 
 // Big endian on the wire.
 struct FrameHeader

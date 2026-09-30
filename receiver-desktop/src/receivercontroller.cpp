@@ -129,7 +129,10 @@ CastScreen *ReceiverController::appendScreen()
     auto *screen = new CastScreen(int(m_screens.size()) + 1, this);
     connect(screen, &CastScreen::notify, this, &ReceiverController::notify);
     connect(screen, &CastScreen::castStopped, this, &ReceiverController::castStopped);
-    connect(screen, &CastScreen::castingChanged, this, &ReceiverController::stateChanged);
+    connect(screen, &CastScreen::castingChanged, this, [this, screen] {
+        onCastingChanged(screen);
+        emit stateChanged();
+    });
     m_screens.append(screen);
     updateConnectLinks();
     return screen;
@@ -149,9 +152,37 @@ void ReceiverController::removeScreen(CastScreen *screen)
         return;
     screen->stopCasting();
     m_screens.removeOne(screen);
+    if (m_audioScreen == screen)
+        setAudioScreen(nullptr);
     renumberScreens();
     emit screensChanged();
     screen->deleteLater();
+}
+
+void ReceiverController::setAudioScreen(CastScreen *screen)
+{
+    if (screen == m_audioScreen || (screen && !m_screens.contains(screen)))
+        return;
+    m_audioScreen = screen;
+    for (CastScreen *s : std::as_const(m_screens))
+        s->setAudible(s == m_audioScreen);
+    emit audioScreenChanged();
+}
+
+void ReceiverController::onCastingChanged(CastScreen *screen)
+{
+    if (screen->casting()) {
+        if (!m_audioScreen)
+            setAudioScreen(screen);
+        return;
+    }
+    if (screen != m_audioScreen)
+        return;
+    // Hand the sound to another phone that's still casting, if any.
+    const auto other = std::find_if(m_screens.cbegin(), m_screens.cend(), [](const CastScreen *s) {
+        return s->casting();
+    });
+    setAudioScreen(other != m_screens.cend() ? *other : nullptr);
 }
 
 void ReceiverController::renumberScreens()
@@ -243,6 +274,12 @@ void ReceiverController::videoPacket(const QString &requestId, const QByteArray 
 {
     if (CastScreen *screen = screenCasting(requestId); screen && !screen->demo())
         screen->videoPacket(packet);
+}
+
+void ReceiverController::audioPacket(const QString &requestId, const QByteArray &packet)
+{
+    if (CastScreen *screen = screenCasting(requestId); screen && !screen->demo())
+        screen->audioPacket(packet);
 }
 
 void ReceiverController::videoEnded(const QString &requestId)

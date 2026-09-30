@@ -28,6 +28,9 @@ class ReceiverController : public QObject
     Q_PROPERTY(QList<CastScreen *> screens READ screens NOTIFY screensChanged)
     Q_PROPERTY(int maxScreens READ maxScreens CONSTANT)
     Q_PROPERTY(bool canAddScreen READ canAddScreen NOTIFY screensChanged)
+    // The one screen whose sound plays, so phones don't talk over each
+    // other; null for silence. The first cast gets it.
+    Q_PROPERTY(CastScreen *audioScreen READ audioScreen WRITE setAudioScreen NOTIFY audioScreenChanged)
     Q_PROPERTY(QString receiverName READ receiverName WRITE setReceiverName NOTIFY receiverNameChanged)
     Q_PROPERTY(QStringList addresses READ addresses NOTIFY addressesChanged)
     Q_PROPERTY(int port READ port CONSTANT)
@@ -53,6 +56,8 @@ public:
     QList<CastScreen *> screens() const { return m_screens; }
     int maxScreens() const;
     bool canAddScreen() const { return m_screens.size() < maxScreens(); }
+    CastScreen *audioScreen() const { return m_audioScreen; }
+    void setAudioScreen(CastScreen *screen);
     QString receiverName() const { return m_receiverName; }
     void setReceiverName(const QString &name);
     QStringList addresses() const { return m_addresses; }
@@ -79,6 +84,7 @@ public:
     bool isCasting(const QString &requestId) const;
     void videoPacket(const QString &requestId, const QByteArray &packet);
     void videoEnded(const QString &requestId);
+    void audioPacket(const QString &requestId, const QByteArray &packet);
 
     Q_INVOKABLE void addScreen();
     // Stops its cast, if any. The last screen stays.
@@ -98,6 +104,7 @@ public:
 signals:
     void stateChanged();
     void screensChanged();
+    void audioScreenChanged();
     void receiverNameChanged();
     void addressesChanged();
     void requireApprovalChanged();
@@ -126,6 +133,8 @@ private:
     CastScreen *findTarget(const ConnectionRequest &request) const;
     CastScreen *targetFor(const ConnectionRequest &request);
     void renumberScreens();
+    // Keeps the sound on a casting screen when its owner stops.
+    void onCastingChanged(CastScreen *screen);
     void updateConnectLinks();
     void addRequest(ConnectionRequest request);
     void startCasting(const ConnectionRequest &request);
@@ -136,6 +145,7 @@ private:
     void tick();
 
     QList<CastScreen *> m_screens;
+    CastScreen *m_audioScreen = nullptr;
     QString m_receiverName;
     QStringList m_addresses;
     bool m_requireApproval = true;

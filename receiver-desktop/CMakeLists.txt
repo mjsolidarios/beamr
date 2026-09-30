@@ -38,6 +38,7 @@ qt_add_qml_module(beamr_receiver_ui
     URI Beamr.Receiver
     VERSION 1.0
     SOURCES
+        src/audioplayer.h src/audioplayer.cpp
         src/castscreen.h src/castscreen.cpp
         src/connectionrequestmodel.h src/connectionrequestmodel.cpp
         src/controlserver.h src/controlserver.cpp
@@ -80,6 +81,8 @@ qt_add_qml_module(beamr_receiver_ui
         qml/icons/sliders.svg
         qml/icons/smartphone.svg
         qml/icons/trash.svg
+        qml/icons/volume-2.svg
+        qml/icons/volume-x.svg
         qml/icons/x.svg
 )
 

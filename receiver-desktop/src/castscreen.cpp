@@ -5,6 +5,7 @@
 
 #include <beamr/log.h>
 
+#include "audioplayer.h"
 #include "videodecoder.h"
 
 namespace {
@@ -31,6 +32,9 @@ CastScreen::CastScreen(int number, QObject *parent)
     m_decoder->moveToThread(&m_decoderThread);
     connect(&m_decoderThread, &QThread::finished, m_decoder, &QObject::deleteLater);
     connect(m_decoder, &VideoDecoder::frameDecoded, this, &CastScreen::showFrame);
+    m_audio = new AudioPlayer;
+    m_audio->moveToThread(&m_decoderThread);
+    connect(&m_decoderThread, &QThread::finished, m_audio, &QObject::deleteLater);
     m_decoderThread.setObjectName(QStringLiteral("beamr-decoder-%1").arg(m_id));
     m_decoderThread.start();
 }
@@ -80,6 +84,7 @@ void CastScreen::setPaused(bool paused)
         m_lastRecordingSeconds = recordingSeconds();
         emit recordingSecondsChanged();
     }
+    updateMute();
     emit pausedChanged();
 }
 
@@ -99,10 +104,12 @@ void CastScreen::start(const ConnectionRequest &request)
         emit castStopped(m_active.requestId);
     }
     resetVideo();
+    resetAudio();
 
     m_active = request;
     if (m_paused) {
         m_paused = false;
+        updateMute();
         emit pausedChanged();
     }
     emit castingChanged();
@@ -124,8 +131,10 @@ void CastScreen::end()
     const QString requestId = m_active.requestId;
     m_active = {};
     resetVideo();
+    resetAudio();
     if (m_paused) {
         m_paused = false;
+        updateMute();
         emit pausedChanged();
     }
     emit castingChanged();
@@ -143,6 +152,41 @@ void CastScreen::videoPacket(const QByteArray &packet)
 void CastScreen::videoEnded()
 {
     resetVideo();
+    resetAudio();
+}
+
+void CastScreen::audioPacket(const QByteArray &packet)
+{
+    QMetaObject::invokeMethod(m_audio, [audio = m_audio, packet] { audio->decode(packet); });
+    if (!m_hasAudio) {
+        m_hasAudio = true;
+        qCInfo(lcCodec) << "screen" << m_number << "has sound";
+        emit hasAudioChanged();
+    }
+}
+
+void CastScreen::resetAudio()
+{
+    QMetaObject::invokeMethod(m_audio, &AudioPlayer::reset);
+    if (m_hasAudio) {
+        m_hasAudio = false;
+        emit hasAudioChanged();
+    }
+}
+
+void CastScreen::setAudible(bool audible)
+{
+    if (audible == m_audible)
+        return;
+    m_audible = audible;
+    updateMute();
+    emit audibleChanged();
+}
+
+void CastScreen::updateMute()
+{
+    // A paused picture with live sound would be confusing; pause both.
+    QMetaObject::invokeMethod(m_audio, [audio = m_audio, muted = !m_audible || m_paused] { audio->setMuted(muted); });
 }
 
 void CastScreen::showFrame(const QVideoFrame &frame, int generation)

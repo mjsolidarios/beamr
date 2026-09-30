@@ -1,11 +1,13 @@
 package com.beamr.sender;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.content.res.Configuration;
 import android.hardware.display.DisplayManager;
@@ -33,6 +35,8 @@ import java.nio.ByteBuffer;
 public class ScreenCaptureService extends Service {
     static final String EXTRA_RESULT_CODE = "com.beamr.sender.RESULT_CODE";
     static final String EXTRA_RESULT_DATA = "com.beamr.sender.RESULT_DATA";
+    // Whether to cast sound too.
+    static final String EXTRA_AUDIO = "com.beamr.sender.AUDIO";
     private static final String ACTION_STOP = "com.beamr.sender.STOP";
 
     private static final String TAG = "beamr";
@@ -59,6 +63,7 @@ public class ScreenCaptureService extends Service {
     private VirtualDisplay mDisplay;
     private MediaCodec mCodec;
     private Surface mSurface;
+    private volatile AudioCapture mAudio;
     private int mWidth;
     private int mHeight;
     private boolean mStopped;
@@ -88,7 +93,8 @@ public class ScreenCaptureService extends Service {
 
         int resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0);
         Intent data = resultData(intent);
-        mHandler.post(() -> start(resultCode, data));
+        boolean audio = intent.getBooleanExtra(EXTRA_AUDIO, false);
+        mHandler.post(() -> start(resultCode, data, audio));
         return START_NOT_STICKY;
     }
 
@@ -99,7 +105,7 @@ public class ScreenCaptureService extends Service {
         return intent.getParcelableExtra(EXTRA_RESULT_DATA);
     }
 
-    private void start(int resultCode, Intent data) {
+    private void start(int resultCode, Intent data, boolean audio) {
         try {
             MediaProjectionManager manager = getSystemService(MediaProjectionManager.class);
             mProjection = manager.getMediaProjection(resultCode, data);
@@ -120,10 +126,24 @@ public class ScreenCaptureService extends Service {
             sInstance = this;
             Log.i(TAG, "capturing " + mWidth + "x" + mHeight);
             CaptureBridge.nativeCaptureStarted(mWidth, mHeight);
+            startAudio(audio);
         } catch (Exception e) {
             Log.e(TAG, "can't start capture", e);
             stopCapture(e.getMessage() != null ? e.getMessage() : e.toString());
         }
+    }
+
+    private void startAudio(boolean wanted) {
+        if (!wanted) {
+            CaptureBridge.nativeAudioState(CaptureBridge.AUDIO_OFF);
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            CaptureBridge.nativeAudioState(CaptureBridge.AUDIO_DENIED);
+            return;
+        }
+        mAudio = AudioCapture.start(mProjection);
+        CaptureBridge.nativeAudioState(mAudio != null ? CaptureBridge.AUDIO_ON : CaptureBridge.AUDIO_UNAVAILABLE);
     }
 
     // The virtual display keeps its size across rotation; re-create the
@@ -184,6 +204,10 @@ public class ScreenCaptureService extends Service {
         }
         sInstance = null;
 
+        if (mAudio != null) {
+            mAudio.stop();
+            mAudio = null;
+        }
         if (mDisplay != null)
             mDisplay.release();
         MediaCodec codec;

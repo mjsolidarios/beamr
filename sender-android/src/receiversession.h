@@ -31,6 +31,8 @@ public:
     // The receiver's own name once it has said hello, the endpoint before.
     QString name() const { return m_name; }
     QString streamToken() const { return m_streamToken; }
+    // The receiver said it plays our sound (Opus).
+    bool playsAudio() const { return m_playsAudio; }
     State state() const { return m_state; }
     bool isApproved() const { return m_state >= Ready; }
 
@@ -63,6 +65,7 @@ private:
     const QString m_screen;
     QString m_name;
     QString m_streamToken;
+    bool m_playsAudio = false;
     State m_state = Connecting;
     bool m_ended = false;
     QTcpSocket m_socket;

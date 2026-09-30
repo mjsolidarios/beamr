@@ -21,10 +21,12 @@ public:
     explicit StreamSender(QObject *parent = nullptr);
 
     // All of these must be called on the sender's thread (queue them).
-    void open(const QString &sessionId, const QString &host, quint16 port, const QString &token);
+    // `audio`: the receiver plays sound, so send it along.
+    void open(const QString &sessionId, const QString &host, quint16 port, const QString &token, bool audio);
     void close(const QString &sessionId);
     void closeAll();
     void sendFrame(const QByteArray &data, quint8 flags, qint64 ptsUs);
+    void sendAudio(const QByteArray &data, qint64 ptsUs);
 
 signals:
     void opened(const QString &sessionId);
@@ -35,9 +37,11 @@ private:
     struct Destination
     {
         QTcpSocket *socket = nullptr;
+        bool audio = false;
         bool waitForKeyFrame = true;
         qint64 sentFrames = 0;
         qint64 droppedFrames = 0;
+        qint64 droppedAudio = 0;
     };
 
     // Tears a connection down quietly; false if there was none.

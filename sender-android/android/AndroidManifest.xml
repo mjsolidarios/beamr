@@ -11,6 +11,9 @@
     <!-- %%INSERT_FEATURES -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- To cast sound: Android gates capturing other apps' playback behind it.
+         beamr never opens the microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- For the "Casting" notification with its Stop button (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

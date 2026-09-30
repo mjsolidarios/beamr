@@ -24,6 +24,7 @@ qt_add_qml_module(beamr_sender
         qml/SectionLabel.qml
         qml/SessionRow.qml
         qml/SettingsSheet.qml
+        qml/SoundSwitch.qml
         qml/Theme.qml
     RESOURCES
         qml/icons/alert.svg
@@ -37,6 +38,8 @@ qt_add_qml_module(beamr_sender
         qml/icons/settings.svg
         qml/icons/smartphone.svg
         qml/icons/sun.svg
+        qml/icons/volume-2.svg
+        qml/icons/volume-x.svg
         qml/icons/x.svg
 )
 

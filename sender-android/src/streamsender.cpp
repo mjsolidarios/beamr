@@ -26,20 +26,27 @@ StreamSender::StreamSender(QObject *parent)
 {
 }
 
-void StreamSender::open(const QString &sessionId, const QString &host, quint16 port, const QString &token)
+void StreamSender::open(const QString &sessionId, const QString &host, quint16 port, const QString &token,
+                        bool audio)
 {
     drop(sessionId);
 
     auto *socket = new QTcpSocket(this);
-    m_destinations.insert(sessionId, {socket});
+    Destination destination;
+    destination.socket = socket;
+    destination.audio = audio;
+    m_destinations.insert(sessionId, destination);
 
-    connect(socket, &QTcpSocket::connected, this, [this, socket, sessionId, token] {
+    connect(socket, &QTcpSocket::connected, this, [this, socket, sessionId, token, audio] {
         socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-        socket->write(protocol::encode({
+        QJsonObject stream{
             {"type", protocol::kStream},
             {"token", token},
             {"codec", protocol::kCodecH264},
-        }));
+        };
+        if (audio)
+            stream.insert("audio", protocol::kCodecOpus);
+        socket->write(protocol::encode(stream));
         qCInfo(lcNet) << "video to" << socket->peerName() << "open";
         // The receiver can only start decoding at a keyframe.
         requestKeyFrame();
@@ -80,7 +87,8 @@ bool StreamSender::drop(const QString &sessionId)
     m_destinations.erase(it);
 
     qCInfo(lcNet) << "video to" << destination.socket->peerName() << "closed; sent" << destination.sentFrames
-                  << "frames, skipped" << destination.droppedFrames;
+                  << "frames, skipped" << destination.droppedFrames << "video and" << destination.droppedAudio
+                  << "audio";
     destination.socket->disconnect(this);
     destination.socket->disconnectFromHost();
     destination.socket->deleteLater();
@@ -100,6 +108,29 @@ void StreamSender::sendFrame(const QByteArray &data, quint8 flags, qint64 ptsUs)
 
     for (Destination &destination : m_destinations)
         send(destination, headerBytes, data, flags);
+}
+
+void StreamSender::sendAudio(const QByteArray &data, qint64 ptsUs)
+{
+    protocol::FrameHeader header;
+    header.size = quint32(data.size());
+    header.flags = protocol::kFrameAudio;
+    header.ptsUs = ptsUs;
+    const QByteArray headerBytes = header.encode();
+
+    for (Destination &destination : m_destinations) {
+        QTcpSocket *socket = destination.socket;
+        if (!destination.audio || socket->state() != QAbstractSocket::ConnectedState)
+            continue;
+        // A backed-up connection gets video's catch-up; a skipped 20 ms of
+        // sound is a click, late sound is worse.
+        if (socket->bytesToWrite() > kMaxQueuedBytes) {
+            ++destination.droppedAudio;
+            continue;
+        }
+        socket->write(headerBytes);
+        socket->write(data);
+    }
 }
 
 void StreamSender::send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags)

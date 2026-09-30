@@ -16,6 +16,11 @@ public final class CaptureBridge {
     // Reasons passed to nativeCaptureStopped().
     public static final String STOPPED_BY_USER = "";
     public static final String DENIED = "denied";
+    // Sound states passed to nativeAudioState().
+    public static final String AUDIO_ON = "on";
+    public static final String AUDIO_OFF = "off";
+    public static final String AUDIO_DENIED = "denied";
+    public static final String AUDIO_UNAVAILABLE = "unavailable";
 
     private CaptureBridge() {}
 
@@ -23,10 +28,15 @@ public final class CaptureBridge {
     static native void nativeCaptureStopped(String error);
     // Called on the encoder thread; the buffer is only valid during the call.
     static native void nativeFrame(ByteBuffer buffer, int offset, int size, long ptsUs, int flags);
+    // One Opus packet; called on the audio thread, same rules as nativeFrame.
+    static native void nativeAudio(ByteBuffer buffer, int offset, int size, long ptsUs);
+    static native void nativeAudioState(String state);
 
-    // Shows the system consent dialog, then starts ScreenCaptureService.
-    public static void requestCapture(Context context) {
-        Intent intent = new Intent(context, ProjectionRequestActivity.class);
+    // Shows the system consent dialog (and, for sound, the record-audio
+    // permission), then starts ScreenCaptureService.
+    public static void requestCapture(Context context, boolean audio) {
+        Intent intent = new Intent(context, ProjectionRequestActivity.class)
+                .putExtra(ScreenCaptureService.EXTRA_AUDIO, audio);
         if (!(context instanceof Activity))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);

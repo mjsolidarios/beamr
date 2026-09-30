@@ -295,6 +295,12 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "M"
+        enabled: window.currentScreen !== null && window.currentScreen.hasAudio && !window.popupOpen
+        onActivated: ReceiverController.audioScreen = window.currentScreen.audible ? null : window.currentScreen
+    }
+
+    Shortcut {
         sequence: "S"
         enabled: window.currentTile !== null && !window.popupOpen
         onActivated: window.currentTile.capture()

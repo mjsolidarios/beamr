@@ -40,6 +40,11 @@ class SenderController : public QObject
     Q_PROPERTY(QVariantList recentReceivers READ recentReceivers NOTIFY recentReceiversChanged)
     Q_PROPERTY(int defaultPort READ defaultPort CONSTANT)
     Q_PROPERTY(bool canScan READ canScan CONSTANT)
+    // Cast what apps play, too. Takes effect on the next cast.
+    Q_PROPERTY(bool shareAudio READ shareAudio WRITE setShareAudio NOTIFY shareAudioChanged)
+    // How sound went for the current cast: on, off, denied, unavailable;
+    // empty when not casting.
+    Q_PROPERTY(QString audioState READ audioState NOTIFY audioStateChanged)
     // Qt::ColorScheme: Unknown follows the system.
     Q_PROPERTY(int colorScheme READ colorScheme WRITE setColorScheme NOTIFY colorSchemeChanged)
 
@@ -61,6 +66,9 @@ public:
     int maxReceivers() const;
     CastState castState() const { return m_castState; }
     bool canScan() const;
+    bool shareAudio() const { return m_shareAudio; }
+    void setShareAudio(bool share);
+    QString audioState() const { return m_audioState; }
     int colorScheme() const;
     void setColorScheme(int scheme);
     QSize castSize() const { return m_castSize; }
@@ -100,6 +108,8 @@ signals:
     void deviceNameChanged();
     void recentReceiversChanged();
     void colorSchemeChanged();
+    void shareAudioChanged();
+    void audioStateChanged();
 
 private:
     void setMessage(const QString &message, bool isError, const QString &retryAddress = {});
@@ -119,6 +129,7 @@ private:
     friend struct CaptureNatives;
     friend struct ScanNatives;
     void captureStarted(QSize size);
+    void setAudioState(const QString &state);
     void captureStopped(const QString &reason);
     void videoOpened(const QString &sessionId);
     void videoClosed(const QString &sessionId, const QString &error);
@@ -133,5 +144,7 @@ private:
     QString m_message;
     bool m_messageIsError = false;
     QString m_retryAddress;
+    bool m_shareAudio = true;
+    QString m_audioState;
     QVariantList m_recent;
 };

@@ -50,6 +50,15 @@ Rectangle {
             onClicked: root.screen.toggleRecording()
         }
 
+        // One phone's sound plays at a time; this picks (or silences) it.
+        IconButton {
+            visible: root.screen.hasAudio
+            iconName: root.screen.audible ? "volume-2" : "volume-x"
+            tint: root.screen.audible ? Theme.text : Theme.textMuted
+            tip: root.screen.audible ? qsTr("Mute (M)") : qsTr("Play this phone's sound (M)")
+            onClicked: ReceiverController.audioScreen = root.screen.audible ? null : root.screen
+        }
+
         IconButton {
             iconName: "camera"
             tip: qsTr("Screenshot (S)")
