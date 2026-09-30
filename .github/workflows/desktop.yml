@@ -118,7 +118,10 @@ jobs:
         shell: pwsh
         run: |
           $dist = New-Item -ItemType Directory -Force beamr-receiver
-          Copy-Item build\receiver-desktop\beamr-receiver.exe $dist
+          # Qt's project setup puts Windows executables in the build root.
+          $exe = Get-ChildItem build -Recurse -Filter beamr-receiver.exe | Select-Object -First 1
+          if (-not $exe) { throw "beamr-receiver.exe not built" }
+          Copy-Item $exe.FullName $dist
           windeployqt --release --qmldir receiver-desktop\qml "$dist\beamr-receiver.exe"
           # beamr links FFmpeg directly, not only through Qt's media plugin.
           Copy-Item "$env:QT_ROOT_DIR\bin\avcodec-*.dll", "$env:QT_ROOT_DIR\bin\avutil-*.dll", `
