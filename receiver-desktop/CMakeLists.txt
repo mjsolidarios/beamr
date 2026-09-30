@@ -8,6 +8,14 @@ set(BEAMR_FFMPEG_LIB_DIR "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_LIBS}" CACHE PATH
 foreach(_lib avcodec avformat avutil)
     find_library(BEAMR_${_lib}_LIBRARY NAMES ${_lib} PATHS "${BEAMR_FFMPEG_LIB_DIR}" NO_DEFAULT_PATH)
     if(NOT BEAMR_${_lib}_LIBRARY)
+        # Some Qt builds ship only the versioned name (libavcodec.61.dylib).
+        file(GLOB _versioned "${BEAMR_FFMPEG_LIB_DIR}/lib${_lib}.*.dylib" "${BEAMR_FFMPEG_LIB_DIR}/lib${_lib}.so.*")
+        if(_versioned)
+            list(GET _versioned 0 _first)
+            set(BEAMR_${_lib}_LIBRARY "${_first}" CACHE FILEPATH "" FORCE)
+        endif()
+    endif()
+    if(NOT BEAMR_${_lib}_LIBRARY)
         message(FATAL_ERROR "lib${_lib} not found in ${BEAMR_FFMPEG_LIB_DIR}. Install Qt Multimedia's "
                             "FFmpeg backend, or point BEAMR_FFMPEG_LIB_DIR at an FFmpeg 7.1 build.")
     endif()
@@ -132,4 +140,15 @@ target_link_libraries(beamr_receiver PRIVATE
 set_target_properties(beamr_receiver PROPERTIES
     OUTPUT_NAME beamr-receiver
     WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_BUNDLE_NAME beamr
+    MACOSX_BUNDLE_GUI_IDENTIFIER io.github.mjsolidarios.beamr.receiver
+    MACOSX_BUNDLE_ICON_FILE beamr.icns
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/Info.plist.in
 )
+if(APPLE)
+    target_sources(beamr_receiver PRIVATE platform/beamr.icns)
+    set_source_files_properties(platform/beamr.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()

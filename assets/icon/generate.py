@@ -53,9 +53,11 @@ values.mkdir(parents=True, exist_ok=True)
     '    <color name="ic_launcher_background">#0F1115</color>\n'
     "</resources>\n")
 
-# Desktop: the window icon, and the Windows executable's icon.
+# Desktop: the window icon, the Windows executable's icon and the macOS
+# app bundle's.
 desktop = ROOT / "receiver-desktop/platform"
 desktop.mkdir(parents=True, exist_ok=True)
 icon.resize((256, 256), Image.LANCZOS).save(desktop / "beamr.png")
 icon.save(desktop / "beamr.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+icon.save(desktop / "beamr.icns")
 print("icons written")

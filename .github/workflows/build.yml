@@ -1,8 +1,8 @@
 name: Build
 
-# Builds the desktop receiver for Linux (AppImage) and Windows (zip), and the
-# Android sender (APK), with the same Qt the project is developed with, and
-# keeps the packages as artifacts.
+# Builds the desktop receiver for Linux (AppImage), Windows (installer and
+# zip) and macOS (disk image), and the Android sender (APK), with the same Qt
+# the project is developed with, and keeps the packages as artifacts.
 
 on:
   push:
@@ -102,7 +102,7 @@ jobs:
         shell: pwsh
         run: |
           $out = New-Item -ItemType Directory -Force ffmpeg-lib
-          foreach ($name in "avcodec", "avutil") {
+          foreach ($name in "avcodec", "avformat", "avutil") {
             $dll = Get-ChildItem "$env:QT_ROOT_DIR\bin\$name-*.dll" | Select-Object -First 1
             if (-not $dll) { throw "$name DLL not found in $env:QT_ROOT_DIR\bin" }
             $exports = dumpbin /nologo /exports $dll.FullName |
@@ -129,15 +129,67 @@ jobs:
           Copy-Item $exe.FullName $dist
           windeployqt --release --qmldir receiver-desktop\qml "$dist\beamr-receiver.exe"
           # beamr links FFmpeg directly, not only through Qt's media plugin.
-          Copy-Item "$env:QT_ROOT_DIR\bin\avcodec-*.dll", "$env:QT_ROOT_DIR\bin\avutil-*.dll", `
-                    "$env:QT_ROOT_DIR\bin\swresample-*.dll" $dist -ErrorAction SilentlyContinue
+          Copy-Item "$env:QT_ROOT_DIR\bin\av*.dll", "$env:QT_ROOT_DIR\bin\sw*.dll" $dist -ErrorAction SilentlyContinue
           Copy-Item LICENSE, THIRD_PARTY_NOTICES.md $dist
           Copy-Item -Recurse licenses $dist
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'VERSION (\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          & makensis /V2 /DVERSION=$version "/DSOURCE=$PWD\beamr-receiver" `
+            "/DOUTFILE=$PWD\beamr-receiver-windows-x64-setup.exe" packaging\windows\beamr.nsi
+          if ($LASTEXITCODE -ne 0) { throw "makensis failed" }
 
       - uses: actions/upload-artifact@v4
         with:
           name: beamr-receiver-windows-x64
           path: beamr-receiver
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beamr-receiver-windows-x64-setup
+          path: beamr-receiver-windows-x64-setup.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtmultimedia
+          cache: true
+
+      - name: Build
+        run: |
+          brew install ninja
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64
+          cmake --build build
+
+      # Unsigned: macOS asks people to confirm opening it the first time
+      # (right-click > Open). Signing needs an Apple Developer ID.
+      - name: Disk image
+        run: |
+          app=$(find build -name 'beamr-receiver.app' -maxdepth 3 | head -n 1)
+          test -n "$app" || { echo "no app bundle"; exit 1; }
+          cp -R LICENSE THIRD_PARTY_NOTICES.md licenses "$app/Contents/Resources/"
+          "$QT_ROOT_DIR/bin/macdeployqt" "$app" -qmldir=receiver-desktop/qml -dmg -always-overwrite
+          mv "${app%.app}.dmg" beamr-receiver-macos-arm64.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beamr-receiver-macos-arm64
+          path: beamr-receiver-macos-arm64.dmg
           if-no-files-found: error
 
   android:
