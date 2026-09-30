@@ -66,19 +66,20 @@ qt_add_qml_module(beamr_receiver_ui
         qml/WaitingTile.qml
     RESOURCES
         qml/icons/camera.svg
+        qml/icons/circle-dot.svg
         qml/icons/copy.svg
         qml/icons/download.svg
-        qml/icons/film.svg
         qml/icons/focus.svg
         qml/icons/folder.svg
         qml/icons/layout-grid.svg
         qml/icons/maximize.svg
         qml/icons/minimize.svg
+        qml/icons/monitor.svg
         qml/icons/pause.svg
         qml/icons/play.svg
         qml/icons/plus.svg
         qml/icons/record.svg
-        qml/icons/sliders.svg
+        qml/icons/settings.svg
         qml/icons/smartphone.svg
         qml/icons/trash.svg
         qml/icons/volume-2.svg
@@ -102,6 +103,16 @@ target_link_libraries(beamr_receiver_ui PUBLIC
 qt_add_executable(beamr_receiver
     src/main.cpp
 )
+
+qt_add_resources(beamr_receiver "app_icon"
+    PREFIX /beamr
+    BASE platform
+    FILES platform/beamr.png
+)
+if(WIN32)
+    # The executable's icon in Explorer and the taskbar.
+    target_sources(beamr_receiver PRIVATE platform/beamr.rc)
+endif()
 
 target_link_libraries(beamr_receiver PRIVATE
     beamr_receiver_ui

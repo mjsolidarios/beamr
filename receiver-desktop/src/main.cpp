@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QtQml/QQmlExtensionPlugin>
 
@@ -16,6 +17,9 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationDisplayName(QStringLiteral("beamr"));
     QGuiApplication::setOrganizationName(QStringLiteral("beamr"));
     QGuiApplication::setApplicationVersion(QString::fromLatin1(beamr::kVersion));
+    QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/beamr/beamr.png")));
+    // Lets Wayland and X11 docks match the window to beamr.desktop.
+    QGuiApplication::setDesktopFileName(QStringLiteral("beamr"));
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,

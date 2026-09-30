@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=beamr
+GenericName=Screen cast receiver
+Comment=Show your Android phone's screen and sound on this computer
+Exec=beamr-receiver
+Icon=beamr
+Categories=AudioVideo;Video;Network;
+Terminal=false

@@ -328,6 +328,11 @@ int ReceiverController::requestTimeoutSeconds() const
     return kRequestTimeoutSec;
 }
 
+QString ReceiverController::appVersion() const
+{
+    return QString::fromLatin1(beamr::kVersion);
+}
+
 bool ReceiverController::demoAvailable() const
 {
 #ifdef QT_DEBUG

@@ -1,0 +1,129 @@
+name: Desktop app
+
+# Builds the receiver for Linux (AppImage) and Windows (zip) with the same
+# Qt the project is developed with, and keeps the packages as artifacts.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  QT_VERSION: "6.11.2"
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0 libfuse2t64
+
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: qtmultimedia
+          cache: true
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+          cmake --build build
+
+      - name: AppImage
+        env:
+          QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
+          QML_SOURCES_PATHS: ${{ github.workspace }}/receiver-desktop/qml
+          EXTRA_QT_MODULES: svg
+          LD_LIBRARY_PATH: ${{ env.QT_ROOT_DIR }}/lib
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          ARCH: x86_64
+        run: |
+          base=https://github.com/linuxdeploy
+          curl -fsSLo linuxdeploy $base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSLo linuxdeploy-plugin-qt $base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy linuxdeploy-plugin-qt
+          mkdir -p AppDir/usr/bin AppDir/usr/share/doc/beamr
+          cp build/receiver-desktop/beamr-receiver AppDir/usr/bin/
+          cp -r LICENSE THIRD_PARTY_NOTICES.md licenses AppDir/usr/share/doc/beamr/
+          ./linuxdeploy --appdir AppDir --plugin qt --output appimage \
+            --desktop-file receiver-desktop/platform/beamr.desktop \
+            --icon-file receiver-desktop/platform/beamr.png
+          mv beamr*.AppImage beamr-receiver-linux-x86_64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beamr-receiver-linux-x86_64
+          path: beamr-receiver-linux-x86_64.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+          cache: true
+
+      # Qt ships FFmpeg as DLLs only; MSVC links through import libraries,
+      # so make them from the DLLs' exports.
+      - name: FFmpeg import libraries
+        shell: pwsh
+        run: |
+          $out = New-Item -ItemType Directory -Force ffmpeg-lib
+          foreach ($name in "avcodec", "avutil") {
+            $dll = Get-ChildItem "$env:QT_ROOT_DIR\bin\$name-*.dll" | Select-Object -First 1
+            if (-not $dll) { throw "$name DLL not found in $env:QT_ROOT_DIR\bin" }
+            $exports = dumpbin /nologo /exports $dll.FullName |
+              Select-String '^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]{8}\s+(\S+)' |
+              ForEach-Object { $_.Matches[0].Groups[1].Value }
+            Set-Content "$out\$name.def" (@("LIBRARY $($dll.Name)", "EXPORTS") + $exports)
+            lib /nologo /def:"$out\$name.def" /out:"$out\$name.lib" /machine:x64
+          }
+          "FFMPEG_LIB_DIR=$($out.FullName)" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="%QT_ROOT_DIR%" -DBEAMR_FFMPEG_LIB_DIR="%FFMPEG_LIB_DIR%"
+          cmake --build build
+        shell: cmd
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $dist = New-Item -ItemType Directory -Force beamr-receiver
+          Copy-Item build\receiver-desktop\beamr-receiver.exe $dist
+          windeployqt --release --qmldir receiver-desktop\qml "$dist\beamr-receiver.exe"
+          # beamr links FFmpeg directly, not only through Qt's media plugin.
+          Copy-Item "$env:QT_ROOT_DIR\bin\avcodec-*.dll", "$env:QT_ROOT_DIR\bin\avutil-*.dll", `
+                    "$env:QT_ROOT_DIR\bin\swresample-*.dll" $dist -ErrorAction SilentlyContinue
+          Copy-Item LICENSE, THIRD_PARTY_NOTICES.md $dist
+          Copy-Item -Recurse licenses $dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: beamr-receiver-windows-x64
+          path: beamr-receiver
+          if-no-files-found: error

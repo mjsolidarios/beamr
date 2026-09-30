@@ -208,6 +208,45 @@ Dialog {
                     }
                 }
             }
+
+            // Qt's LGPL asks apps to say they use Qt and where its license is.
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                SectionLabel {
+                    text: qsTr("About")
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("beamr %1 is free software under the MIT license.").arg(ReceiverController.appVersion)
+                    color: Theme.text
+                    font.pixelSize: 14
+                    wrapMode: Text.Wrap
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Built with <a href=\"https://www.qt.io\">Qt</a> %1, used under the "
+                               + "<a href=\"https://www.gnu.org/licenses/lgpl-3.0.html\">GNU LGPL v3</a>, "
+                               + "and developed in Qt Creator. Qt's source is at "
+                               + "<a href=\"https://code.qt.io\">code.qt.io</a>. Video and sound decoding "
+                               + "use FFmpeg (LGPL v2.1). "
+                               + "<a href=\"https://github.com/mjsolidarios/beamr/blob/main/THIRD_PARTY_NOTICES.md\">"
+                               + "All licenses</a>").arg(ReceiverController.qtVersion)
+                    textFormat: Text.StyledText
+                    linkColor: Theme.accent
+                    color: Theme.textMuted
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                    onLinkActivated: link => Qt.openUrlExternally(link)
+
+                    HoverHandler {
+                        cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
+                }
+            }
         }
     }
 

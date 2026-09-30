@@ -81,6 +81,15 @@ Useful environment variables for the receiver:
 - `BEAMR_DEMO=1` enables Ctrl+Shift+D, which simulates a phone asking to cast.
   Debug builds have it on already.
 
+## Built with Qt
+
+beamr is built with [Qt 6](https://www.qt.io) and developed in
+[Qt Creator](https://www.qt.io/product/development-tools). Qt is used under
+its open-source license, the **GNU LGPL v3**. Qt is linked dynamically and
+unmodified, both apps say so in their Settings, and the license texts are in
+[licenses/](licenses). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+for details and where to get Qt's source.
+
 ## Third-party code
 
 - [`third_party/ffmpeg`](third_party/ffmpeg): FFmpeg public headers matching the
@@ -88,6 +97,8 @@ Useful environment variables for the receiver:
 - [`third_party/qrcodegen`](third_party/qrcodegen): Project Nayuki's QR Code
   generator (MIT)
 - Icons from [Lucide](https://lucide.dev) (ISC)
+- The app icon's masters are in [`assets/icon`](assets/icon); `generate.py`
+  there makes every Android and desktop size from them
 
 ## License
 

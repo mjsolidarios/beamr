@@ -221,13 +221,22 @@ Drawer {
             }
         }
 
+        // Qt's LGPL asks apps to say they use Qt and where its license is.
         Label {
-            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
             Layout.topMargin: 24
             Layout.bottomMargin: 8
-            text: qsTr("beamr %1").arg(root.appVersion)
+            horizontalAlignment: Text.AlignHCenter
+            text: qsTr("beamr %1 · MIT license<br>Built with Qt %2 (GNU LGPL v3) in Qt Creator · "
+                       + "<a href=\"https://github.com/mjsolidarios/beamr/blob/main/THIRD_PARTY_NOTICES.md\">Licenses</a>")
+                  .arg(root.appVersion).arg(SenderController.qtVersion)
+            textFormat: Text.StyledText
+            linkColor: Theme.accent
             color: Theme.textFaint
             font.pixelSize: 12
+            lineHeight: 1.3
+            wrapMode: Text.Wrap
+            onLinkActivated: link => Qt.openUrlExternally(link)
         }
     }
 }

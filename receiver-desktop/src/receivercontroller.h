@@ -43,6 +43,9 @@ class ReceiverController : public QObject
     Q_PROPERTY(QUrl recordingsFolder READ recordingsFolder CONSTANT)
     Q_PROPERTY(QUrl screenshotsFolder READ screenshotsFolder CONSTANT)
     Q_PROPERTY(bool demoAvailable READ demoAvailable CONSTANT)
+    // For the About section: the Qt this build runs on.
+    Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
+    Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
 
 public:
     enum State { Idle, Casting };
@@ -72,6 +75,8 @@ public:
     QUrl recordingsFolder() const { return QUrl::fromLocalFile(m_recordingsDir); }
     QUrl screenshotsFolder() const { return QUrl::fromLocalFile(m_screenshotsDir); }
     bool demoAvailable() const;
+    QString qtVersion() const { return QString::fromLatin1(qVersion()); }
+    QString appVersion() const;
 
     // Entry points for the network layer: a sender asked to cast (to
     // `screenId`, or anywhere when empty), or hung up before or during its

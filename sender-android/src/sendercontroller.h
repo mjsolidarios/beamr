@@ -40,6 +40,8 @@ class SenderController : public QObject
     Q_PROPERTY(QVariantList recentReceivers READ recentReceivers NOTIFY recentReceiversChanged)
     Q_PROPERTY(int defaultPort READ defaultPort CONSTANT)
     Q_PROPERTY(bool canScan READ canScan CONSTANT)
+    // For the About line: the Qt this build runs on.
+    Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     // Cast what apps play, too. Takes effect on the next cast.
     Q_PROPERTY(bool shareAudio READ shareAudio WRITE setShareAudio NOTIFY shareAudioChanged)
     // How sound went for the current cast: on, off, denied, unavailable;
@@ -66,6 +68,7 @@ public:
     int maxReceivers() const;
     CastState castState() const { return m_castState; }
     bool canScan() const;
+    QString qtVersion() const { return QString::fromLatin1(qVersion()); }
     bool shareAudio() const { return m_shareAudio; }
     void setShareAudio(bool share);
     QString audioState() const { return m_audioState; }

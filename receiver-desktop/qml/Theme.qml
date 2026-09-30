@@ -19,6 +19,11 @@ QtObject {
     readonly property color record: "#ff4757"
     readonly property color warning: "#f5b942"
     readonly property color success: "#3ecf8e"
+    // The "Add screen" button: a quiet green, stronger on hover.
+    readonly property color successSoft: "#143ecf8e"
+    readonly property color successHover: "#243ecf8e"
+    readonly property color successPressed: "#343ecf8e"
+    readonly property color successBorder: "#663ecf8e"
 
     readonly property int radius: 12
     readonly property int radiusSmall: 8

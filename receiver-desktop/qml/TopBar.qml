@@ -13,7 +13,7 @@ Rectangle {
     signal fullScreenRequested()
     signal addScreenRequested()
 
-    implicitHeight: 60
+    implicitHeight: 72
     height: implicitHeight
     color: Theme.bg
 
@@ -27,19 +27,22 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 20
-        anchors.rightMargin: 12
+        anchors.leftMargin: 28
+        anchors.rightMargin: 20
         spacing: 14
 
         Label {
             text: "beamr"
             color: Theme.text
-            font.pixelSize: 21
-            font.weight: Font.DemiBold
-            font.letterSpacing: 0.5
+            font.pixelSize: 24
+            font.weight: Font.Bold
+            font.letterSpacing: -0.3
         }
 
-        StatusPill {}
+        // The idle view shows its own status; this is for while casting.
+        StatusPill {
+            visible: ReceiverController.state === ReceiverController.Casting
+        }
 
         Item {
             Layout.fillWidth: true
@@ -47,23 +50,39 @@ Rectangle {
 
         // Another place for a phone to cast to, with its own QR code.
         IconButton {
+            id: addScreenButton
+
             iconName: "plus"
             text: qsTr("Add screen")
+            font.pixelSize: 16
+            font.weight: Font.Medium
+            leftPadding: 16
+            rightPadding: 18
             enabled: ReceiverController.canAddScreen
             tip: ReceiverController.canAddScreen
                  ? qsTr("Show another phone alongside")
                  : qsTr("Up to %1 screens").arg(ReceiverController.maxScreens)
             onClicked: root.addScreenRequested()
+
+            background: Rectangle {
+                implicitHeight: 44
+                radius: Theme.radius
+                color: addScreenButton.down ? Theme.successPressed
+                     : addScreenButton.hovered ? Theme.successHover : Theme.successSoft
+                border.color: addScreenButton.enabled ? Theme.successBorder : Theme.border
+            }
         }
 
         Rectangle {
+            Layout.leftMargin: 8
+            Layout.rightMargin: 8
             Layout.preferredWidth: 1
-            Layout.preferredHeight: 24
+            Layout.preferredHeight: 32
             color: Theme.border
         }
 
         IconButton {
-            iconName: "film"
+            iconName: "circle-dot"
             tip: qsTr("Recordings")
             onClicked: root.recordingsRequested()
 
@@ -90,7 +109,7 @@ Rectangle {
         }
 
         IconButton {
-            iconName: "sliders"
+            iconName: "settings"
             tip: qsTr("Settings")
             onClicked: root.settingsRequested()
         }
