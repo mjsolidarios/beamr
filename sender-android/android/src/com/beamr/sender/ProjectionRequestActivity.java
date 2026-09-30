@@ -63,7 +63,10 @@ public class ProjectionRequestActivity extends Activity {
             Intent service = new Intent(this, ScreenCaptureService.class)
                     .putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, resultCode)
                     .putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
-                    .putExtra(ScreenCaptureService.EXTRA_AUDIO, mAudio);
+                    .putExtra(ScreenCaptureService.EXTRA_AUDIO, mAudio)
+                    .putExtra(ScreenCaptureService.EXTRA_QUALITY,
+                            getIntent().getIntExtra(ScreenCaptureService.EXTRA_QUALITY,
+                                    ScreenCaptureService.QUALITY_SMOOTH));
             startForegroundService(service);
         } else {
             CaptureBridge.nativeCaptureStopped(CaptureBridge.DENIED);

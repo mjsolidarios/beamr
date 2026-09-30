@@ -104,7 +104,7 @@ Rectangle {
             text: root.live
                   ? qsTr("Switch to any app. Stop here or from the notification.")
                   : root.castState === SenderController.Starting
-                    ? qsTr("In the dialog that opens, choose “Entire screen” and allow it.")
+                    ? qsTr("In the dialog that opens, share your entire screen or just one app, then allow it.")
                     : qsTr("Your screen shows on every receiver below that allowed this phone.")
             color: Theme.textMuted
             font.pixelSize: 14
@@ -116,8 +116,9 @@ Rectangle {
             Layout.topMargin: 6
             visible: root.live && SenderController.castSize.width > 0
             text: {
-                const size = qsTr("%1 × %2 · 60 fps").arg(SenderController.castSize.width)
+                const size = qsTr("%1 × %2 · %3 fps").arg(SenderController.castSize.width)
                                                       .arg(SenderController.castSize.height)
+                                                      .arg(SenderController.frameRate)
                 return SenderController.audioState === "on" ? qsTr("%1 · with sound").arg(size) : size
             }
             color: Theme.textFaint

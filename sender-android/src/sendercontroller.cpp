@@ -41,6 +41,7 @@ const QString kDeviceNameKey = QStringLiteral("device/name");
 const QString kRecentKey = QStringLiteral("recentReceivers");
 const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
 const QString kShareAudioKey = QStringLiteral("cast/shareAudio");
+const QString kQualityKey = QStringLiteral("cast/quality");
 const QString kOnboardingDoneKey = QStringLiteral("onboarding/done");
 
 // The one controller the capture service reports to. QML creates it once.
@@ -185,6 +186,7 @@ SenderController::SenderController(QObject *parent)
     settings.endArray();
 
     m_shareAudio = settings.value(kShareAudioKey, true).toBool();
+    m_quality = Quality(std::clamp(settings.value(kQualityKey, int(Smooth)).toInt(), int(Smooth), int(DataSaver)));
     m_onboardingDone = settings.value(kOnboardingDoneKey, false).toBool();
 
     QGuiApplication::styleHints()->setColorScheme(
@@ -215,7 +217,29 @@ SenderController::SenderController(QObject *parent)
 #ifdef Q_OS_ANDROID
     registerCaptureNatives();
     registerScanNatives();
+    // The Quick Settings tile may have started the app.
+    if (QJniObject::callStaticMethod<jboolean>("com/beamr/sender/CaptureBridge", "takePendingQuickCast"))
+        QMetaObject::invokeMethod(this, &SenderController::quickCast, Qt::QueuedConnection);
 #endif
+}
+
+void SenderController::quickCast()
+{
+    if (m_castState != Off)
+        return;
+    // Already connected: just start.
+    if (approvedCount() > 0) {
+        startCasting();
+        return;
+    }
+    const QString address = lastAddress();
+    if (address.isEmpty()) {
+        setMessage(tr("Connect to a computer once, and the beamr tile will cast to it next time."), false);
+        return;
+    }
+    // Casting starts on its own once the computer lets this phone in.
+    if (!isConnectedTo(address))
+        addReceiver(address);
 }
 
 SenderController::~SenderController()
@@ -417,11 +441,13 @@ void SenderController::startCasting()
         return;
 #ifdef Q_OS_ANDROID
     clearMessage();
+    m_castQuality = m_quality;
     setCastState(Starting);
+    emit qualityChanged(); // frameRate now follows this cast
     QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "requestCapture",
-                                       "(Landroid/content/Context;Z)V",
+                                       "(Landroid/content/Context;ZI)V",
                                        QNativeInterface::QAndroidApplication::context().object(),
-                                       jboolean(m_shareAudio));
+                                       jboolean(m_shareAudio), jint(m_quality));
 #else
     setMessage(tr("Screen casting needs the Android app."), true);
 #endif
@@ -491,6 +517,15 @@ void SenderController::setOnboardingDone(bool done)
     m_onboardingDone = done;
     QSettings().setValue(kOnboardingDoneKey, done);
     emit onboardingDoneChanged();
+}
+
+void SenderController::setQuality(Quality quality)
+{
+    if (quality == m_quality)
+        return;
+    m_quality = quality;
+    QSettings().setValue(kQualityKey, int(quality));
+    emit qualityChanged();
 }
 
 void SenderController::setShareAudio(bool share)
@@ -722,6 +757,14 @@ struct CaptureNatives
         QMetaObject::invokeMethod(stream, [stream, data, ptsUs = qint64(ptsUs)] { stream->sendAudio(data, ptsUs); });
     }
 
+    static void quickCast(JNIEnv *, jclass)
+    {
+        QMetaObject::invokeMethod(qApp, [] {
+            if (s_instance)
+                s_instance->quickCast();
+        });
+    }
+
     static void audioState(JNIEnv *, jclass, jstring state)
     {
         const QString text = QJniObject(state).toString();
@@ -792,6 +835,7 @@ void registerCaptureNatives()
             {"nativeFrame", "(Ljava/nio/ByteBuffer;IIJI)V", reinterpret_cast<void *>(&CaptureNatives::frame)},
             {"nativeAudio", "(Ljava/nio/ByteBuffer;IIJ)V", reinterpret_cast<void *>(&CaptureNatives::audio)},
             {"nativeAudioState", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::audioState)},
+            {"nativeQuickCast", "()V", reinterpret_cast<void *>(&CaptureNatives::quickCast)},
         });
     if (!ok)
         qCWarning(lcBeamr) << "can't register capture callbacks; casting won't work";

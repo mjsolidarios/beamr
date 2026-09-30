@@ -37,6 +37,12 @@ public class ScreenCaptureService extends Service {
     static final String EXTRA_RESULT_DATA = "com.beamr.sender.RESULT_DATA";
     // Whether to cast sound too.
     static final String EXTRA_AUDIO = "com.beamr.sender.AUDIO";
+    // One of the QUALITY_* presets.
+    static final String EXTRA_QUALITY = "com.beamr.sender.QUALITY";
+    // Keep in step with SenderController::Quality.
+    static final int QUALITY_SMOOTH = 0;
+    static final int QUALITY_BALANCED = 1;
+    static final int QUALITY_DATA_SAVER = 2;
     private static final String ACTION_STOP = "com.beamr.sender.STOP";
 
     private static final String TAG = "beamr";
@@ -44,11 +50,6 @@ public class ScreenCaptureService extends Service {
     private static final String CHANNEL_ID = "casting";
     private static final int NOTIFICATION_ID = 1;
 
-    // Keep in step with beamr/config.h.
-    private static final int MAX_LONG_SIDE = 1920;
-    private static final int MAX_SHORT_SIDE = 1080;
-    private static final int FRAME_RATE = 60;
-    private static final int BITRATE_BPS = 8_000_000;
     private static final int KEYFRAME_INTERVAL_SEC = 2;
     // A still screen produces no frames; repeat the last one so a receiver
     // that joins, or drops a frame, recovers quickly.
@@ -67,6 +68,16 @@ public class ScreenCaptureService extends Service {
     private int mWidth;
     private int mHeight;
     private boolean mStopped;
+
+    // The preset's limits: Smooth 1080p60 at 8 Mbit/s, Balanced 1080p30 at
+    // 5 Mbit/s, Data saver 720p30 at 2.5 Mbit/s. Smooth matches beamr/config.h.
+    private int mMaxLongSide = 1920;
+    private int mMaxShortSide = 1080;
+    private int mFrameRate = 60;
+    private int mBitrateBps = 8_000_000;
+    // Android 14+ reports what's captured (the screen or a single app) and
+    // its size; before that, it's always the whole screen.
+    private boolean mContentSizeReported;
 
     static ScreenCaptureService instance() {
         return sInstance;
@@ -94,8 +105,26 @@ public class ScreenCaptureService extends Service {
         int resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0);
         Intent data = resultData(intent);
         boolean audio = intent.getBooleanExtra(EXTRA_AUDIO, false);
+        applyQuality(intent.getIntExtra(EXTRA_QUALITY, QUALITY_SMOOTH));
         mHandler.post(() -> start(resultCode, data, audio));
         return START_NOT_STICKY;
+    }
+
+    private void applyQuality(int quality) {
+        switch (quality) {
+        case QUALITY_BALANCED:
+            mFrameRate = 30;
+            mBitrateBps = 5_000_000;
+            break;
+        case QUALITY_DATA_SAVER:
+            mMaxLongSide = 1280;
+            mMaxShortSide = 720;
+            mFrameRate = 30;
+            mBitrateBps = 2_500_000;
+            break;
+        default:
+            break;
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -117,16 +146,27 @@ public class ScreenCaptureService extends Service {
                 public void onStop() {
                     stopCapture(CaptureBridge.STOPPED_BY_USER);
                 }
+
+                // Android 14+: the size of what's shared, whether the whole
+                // screen or a single app, now and whenever it changes (a
+                // rotation, or the app resizing). Fit the video to it.
+                @Override
+                public void onCapturedContentResize(int width, int height) {
+                    mContentSizeReported = true;
+                    if (width > 0 && height > 0)
+                        resizeTo(width, height);
+                }
             }, mHandler);
 
             DisplayMetrics metrics = displayMetrics();
-            startEncoder(metrics);
+            startEncoder(metrics.widthPixels, metrics.heightPixels);
             mDisplay = mProjection.createVirtualDisplay("beamr", mWidth, mHeight, metrics.densityDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mSurface, null, mHandler);
             sInstance = this;
             Log.i(TAG, "capturing " + mWidth + "x" + mHeight);
             CaptureBridge.nativeCaptureStarted(mWidth, mHeight);
             startAudio(audio);
+            CastTileService.refresh(this);
         } catch (Exception e) {
             Log.e(TAG, "can't start capture", e);
             stopCapture(e.getMessage() != null ? e.getMessage() : e.toString());
@@ -147,20 +187,26 @@ public class ScreenCaptureService extends Service {
     }
 
     // The virtual display keeps its size across rotation; re-create the
-    // encoder at the new orientation and point the display at it.
+    // encoder at the new orientation and point the display at it. Android
+    // 14+ reports this through onCapturedContentResize() instead.
     @Override
     public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
         Handler handler = mHandler;
-        if (handler != null)
-            handler.post(this::resizeForDisplay);
+        if (handler != null && !mContentSizeReported) {
+            handler.post(() -> {
+                DisplayMetrics metrics = displayMetrics();
+                resizeTo(metrics.widthPixels, metrics.heightPixels);
+            });
+        }
     }
 
-    private void resizeForDisplay() {
+    // Re-creates the encoder for content of this size and points the virtual
+    // display at it; nothing to do if the video size doesn't change.
+    private void resizeTo(int contentWidth, int contentHeight) {
         if (mDisplay == null || mStopped)
             return;
-        DisplayMetrics metrics = displayMetrics();
-        int[] size = encodedSize(metrics.widthPixels, metrics.heightPixels, null);
+        int[] size = encodedSize(contentWidth, contentHeight, null);
         if (size[0] == mWidth && size[1] == mHeight)
             return;
         try {
@@ -169,8 +215,8 @@ public class ScreenCaptureService extends Service {
                 oldCodec = mCodec;
             }
             Surface oldSurface = mSurface;
-            startEncoder(metrics);
-            mDisplay.resize(mWidth, mHeight, metrics.densityDpi);
+            startEncoder(contentWidth, contentHeight);
+            mDisplay.resize(mWidth, mHeight, displayMetrics().densityDpi);
             mDisplay.setSurface(mSurface);
             release(oldCodec);
             oldSurface.release();
@@ -227,22 +273,23 @@ public class ScreenCaptureService extends Service {
         stopSelf();
         Log.i(TAG, "capture stopped: " + (reason.isEmpty() ? "by user" : reason));
         CaptureBridge.nativeCaptureStopped(reason);
+        CastTileService.refresh(this);
     }
 
-    // Creates and starts an encoder sized for the screen; it becomes mCodec
-    // and its input surface mSurface.
-    private void startEncoder(DisplayMetrics metrics) throws Exception {
+    // Creates and starts an encoder sized for content of this size (the
+    // screen, or a single app); it becomes mCodec and its input surface mSurface.
+    private void startEncoder(int contentWidth, int contentHeight) throws Exception {
         MediaCodec codec = MediaCodec.createEncoderByType(MIME);
-        int[] size = encodedSize(metrics.widthPixels, metrics.heightPixels,
+        int[] size = encodedSize(contentWidth, contentHeight,
                 codec.getCodecInfo().getCapabilitiesForType(MIME).getVideoCapabilities());
         mWidth = size[0];
         mHeight = size[1];
 
         MediaFormat format = MediaFormat.createVideoFormat(MIME, mWidth, mHeight);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, BITRATE_BPS);
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
-        format.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, FRAME_RATE);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, mBitrateBps);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, mFrameRate);
+        format.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, mFrameRate);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, KEYFRAME_INTERVAL_SEC);
         format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, REPEAT_FRAME_AFTER_US);
         // Every keyframe carries SPS/PPS, so the receiver can start anywhere.
@@ -308,12 +355,12 @@ public class ScreenCaptureService extends Service {
         codec.release();
     }
 
-    // Fits the screen into 1920x1080 (either orientation) in steps the
-    // encoder accepts, keeping the aspect ratio.
-    private static int[] encodedSize(int screenWidth, int screenHeight, MediaCodecInfo.VideoCapabilities caps) {
+    // Fits the content into the preset's size (either orientation) in steps
+    // the encoder accepts, keeping the aspect ratio.
+    private int[] encodedSize(int screenWidth, int screenHeight, MediaCodecInfo.VideoCapabilities caps) {
         int longSide = Math.max(screenWidth, screenHeight);
         int shortSide = Math.min(screenWidth, screenHeight);
-        double scale = Math.min(1.0, Math.min((double) MAX_LONG_SIDE / longSide, (double) MAX_SHORT_SIDE / shortSide));
+        double scale = Math.min(1.0, Math.min((double) mMaxLongSide / longSide, (double) mMaxShortSide / shortSide));
         for (int attempt = 0; attempt < 12; ++attempt) {
             int width = align16(screenWidth * scale);
             int height = align16(screenHeight * scale);

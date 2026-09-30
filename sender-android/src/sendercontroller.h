@@ -53,6 +53,11 @@ class SenderController : public QObject
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     // Cast what apps play, too. Takes effect on the next cast.
     Q_PROPERTY(bool shareAudio READ shareAudio WRITE setShareAudio NOTIFY shareAudioChanged)
+    // Picture quality for casts: Smooth (1080p60), Balanced (1080p30) or
+    // DataSaver (720p30, for weak Wi-Fi). Takes effect on the next cast.
+    Q_PROPERTY(Quality quality READ quality WRITE setQuality NOTIFY qualityChanged)
+    // Frames a second for the chosen quality, for showing it.
+    Q_PROPERTY(int frameRate READ frameRate NOTIFY qualityChanged)
     // How sound went for the current cast: on, off, denied, unavailable;
     // empty when not casting.
     Q_PROPERTY(QString audioState READ audioState NOTIFY audioStateChanged)
@@ -66,6 +71,9 @@ public:
     // Starting: waiting for the user to allow screen capture.
     enum CastState { Off, Starting, On };
     Q_ENUM(CastState)
+    // Keep in step with ScreenCaptureService.QUALITY_*.
+    enum Quality { Smooth, Balanced, DataSaver };
+    Q_ENUM(Quality)
 
     explicit SenderController(QObject *parent = nullptr);
     ~SenderController() override;
@@ -81,6 +89,10 @@ public:
     QString qtVersion() const { return QString::fromLatin1(qVersion()); }
     bool onboardingDone() const { return m_onboardingDone; }
     void setOnboardingDone(bool done);
+    Quality quality() const { return m_quality; }
+    void setQuality(Quality quality);
+    // For the cast in progress, else for the next one.
+    int frameRate() const { return (m_castState != Off ? m_castQuality : m_quality) == Smooth ? 60 : 30; }
     bool shareAudio() const { return m_shareAudio; }
     void setShareAudio(bool share);
     QString audioState() const { return m_audioState; }
@@ -131,6 +143,7 @@ signals:
     void discoveringChanged();
     void colorSchemeChanged();
     void shareAudioChanged();
+    void qualityChanged();
     void onboardingDoneChanged();
     void audioStateChanged();
 
@@ -138,6 +151,8 @@ private:
     void setMessage(const QString &message, bool isError, const QString &retryAddress = {});
     void setCastState(CastState state);
     void updateSystemBars();
+    // From the Quick Settings tile: cast to the computer used last.
+    void quickCast();
     void qrScanned(const QString &text);
     void qrScanFailed(const QString &reason);
     void onSessionApproved(ReceiverSession *session);
@@ -170,6 +185,8 @@ private:
     bool m_messageIsError = false;
     QString m_retryAddress;
     bool m_shareAudio = true;
+    Quality m_quality = Smooth;
+    Quality m_castQuality = Smooth;
     bool m_onboardingDone = false;
     QString m_audioState;
     QVariantList m_recent;

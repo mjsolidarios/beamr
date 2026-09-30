@@ -84,6 +84,9 @@ void ReceiverSession::close()
     m_retryTimer.stop();
     if (m_socket.state() == QAbstractSocket::ConnectedState) {
         m_socket.write(protocol::encode({{"type", protocol::kBye}}));
+        // This session is deleted right after, which would drop the unsent
+        // bye; without it the receiver would hold our screen for a comeback.
+        m_socket.flush();
         m_socket.disconnectFromHost();
     } else {
         m_socket.abort();

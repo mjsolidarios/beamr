@@ -18,7 +18,8 @@ Drawer {
 
     edge: Qt.BottomEdge
     width: parent.width
-    height: content.implicitHeight + 16 + safeBottom
+    // Scrolls rather than running off a short (or landscape) screen.
+    height: Math.min(content.implicitHeight + 16 + safeBottom, parent.height * 0.92)
     modal: true
     dim: true
 
@@ -38,241 +39,226 @@ Drawer {
         }
     }
 
-    ColumnLayout {
-        id: content
+    Flickable {
+        anchors.fill: parent
+        anchors.bottomMargin: root.safeBottom
+        contentWidth: width
+        contentHeight: content.implicitHeight + 16
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
 
-        x: Theme.gutter
-        width: parent.width - 2 * Theme.gutter
-        spacing: 0
+        ColumnLayout {
+            id: content
 
-        // Grab handle.
-        Rectangle {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 10
-            implicitWidth: 36
-            implicitHeight: 4
-            radius: 2
-            color: Theme.border
-        }
+            x: Theme.gutter
+            width: parent.width - 2 * Theme.gutter
+            spacing: 0
 
-        Label {
-            Layout.topMargin: 18
-            text: qsTr("Settings")
-            color: Theme.text
-            font.pixelSize: 22
-            font.weight: Font.DemiBold
-        }
+            // Grab handle.
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 10
+                implicitWidth: 36
+                implicitHeight: 4
+                radius: 2
+                color: Theme.border
+            }
 
-        SectionLabel {
-            Layout.topMargin: 24
-            text: qsTr("Appearance")
-        }
+            Label {
+                Layout.topMargin: 18
+                text: qsTr("Settings")
+                color: Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
 
-        // Segmented control: one choice of three.
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: 10
-            implicitHeight: 52
-            radius: height / 2
-            color: Theme.bg
-            border.color: Theme.border
+            SectionLabel {
+                Layout.topMargin: 24
+                text: qsTr("Appearance")
+            }
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 4
-                spacing: 4
+            SegmentedControl {
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                options: [
+                    { value: Qt.Unknown, label: qsTr("System"), glyph: "smartphone" },
+                    { value: Qt.Light, label: qsTr("Light"), glyph: "sun" },
+                    { value: Qt.Dark, label: qsTr("Dark"), glyph: "moon" }
+                ]
+                value: SenderController.colorScheme
+                onActivated: value => SenderController.colorScheme = value
+            }
 
-                Repeater {
-                    model: [
-                        { scheme: Qt.Unknown, label: qsTr("System"), glyph: "smartphone" },
-                        { scheme: Qt.Light, label: qsTr("Light"), glyph: "sun" },
-                        { scheme: Qt.Dark, label: qsTr("Dark"), glyph: "moon" }
-                    ]
+            SectionLabel {
+                Layout.topMargin: 28
+                text: qsTr("Picture quality")
+            }
 
-                    delegate: AbstractButton {
-                        id: segment
+            SegmentedControl {
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                options: [
+                    { value: SenderController.Smooth, label: qsTr("Smooth") },
+                    { value: SenderController.Balanced, label: qsTr("Balanced") },
+                    { value: SenderController.DataSaver, label: qsTr("Data saver") }
+                ]
+                value: SenderController.quality
+                onActivated: value => SenderController.quality = value
+            }
 
-                        required property var modelData
-                        readonly property bool selected: SenderController.colorScheme === modelData.scheme
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: {
+                    switch (SenderController.quality) {
+                    case SenderController.Balanced:
+                        return qsTr("Full HD at 30 frames a second. Easier on the battery and busy Wi‑Fi.")
+                    case SenderController.DataSaver:
+                        return qsTr("720p at 30 frames a second. For weak Wi‑Fi or older phones.")
+                    default:
+                        return qsTr("Full HD at 60 frames a second. Best for games and video.")
+                    }
+                }
+                color: Theme.textMuted
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
 
+            SectionLabel {
+                Layout.topMargin: 28
+                text: qsTr("Sound")
+            }
+
+            SoundSwitch {
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                Layout.leftMargin: -6
+                Layout.rightMargin: -6
+            }
+
+            Label {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                visible: SenderController.castState === SenderController.On
+                text: qsTr("Quality and sound changes apply the next time you start casting.")
+                color: Theme.textFaint
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            SectionLabel {
+                Layout.topMargin: 28
+                text: qsTr("This phone")
+            }
+
+            ItemDelegate {
+                id: phoneRow
+
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                Layout.leftMargin: -12
+                Layout.rightMargin: -12
+                leftPadding: 12
+                rightPadding: 12
+                onClicked: {
+                    root.close()
+                    root.renameRequested()
+                }
+                Accessible.name: qsTr("Rename this phone. Currently %1").arg(SenderController.deviceName)
+
+                background: Rectangle {
+                    radius: Theme.radiusSmall
+                    color: phoneRow.down ? Theme.pressed : "transparent"
+                }
+
+                contentItem: RowLayout {
+                    spacing: 12
+
+                    Icon {
+                        glyph: "smartphone"
+                        size: 20
+                        color: Theme.textMuted
+                    }
+
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        checkable: true
-                        checked: selected
-                        onClicked: SenderController.colorScheme = modelData.scheme
-                        Accessible.name: modelData.label
-                        Accessible.role: Accessible.RadioButton
+                        spacing: 0
 
-                        background: Rectangle {
-                            radius: height / 2
-                            color: segment.selected ? Theme.accentSoft
-                                 : segment.down ? Theme.pressed : "transparent"
-                            border.width: segment.selected ? 1 : 0
-                            border.color: Theme.accent
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                        Label {
+                            text: qsTr("Computers see it as")
+                            color: Theme.textMuted
+                            font.pixelSize: 12
                         }
 
-                        contentItem: Item {
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Icon {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    glyph: segment.modelData.glyph
-                                    size: 18
-                                    color: segment.selected ? Theme.accent : Theme.textMuted
-                                }
-
-                                Label {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: segment.modelData.label
-                                    color: segment.selected ? Theme.accent : Theme.text
-                                    font.pixelSize: 15
-                                    font.weight: segment.selected ? Font.DemiBold : Font.Normal
-                                }
-                            }
+                        Label {
+                            Layout.fillWidth: true
+                            text: SenderController.deviceName
+                            color: Theme.text
+                            font.pixelSize: 15
+                            elide: Text.ElideRight
                         }
                     }
-                }
-            }
-        }
 
-        SectionLabel {
-            Layout.topMargin: 28
-            text: qsTr("Sound")
-        }
-
-        SoundSwitch {
-            Layout.fillWidth: true
-            Layout.topMargin: 6
-            Layout.leftMargin: -6
-            Layout.rightMargin: -6
-        }
-
-        Label {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            visible: SenderController.castState === SenderController.On
-            text: qsTr("Applies the next time you start casting.")
-            color: Theme.textFaint
-            font.pixelSize: 12
-            wrapMode: Text.Wrap
-        }
-
-        SectionLabel {
-            Layout.topMargin: 28
-            text: qsTr("This phone")
-        }
-
-        ItemDelegate {
-            id: phoneRow
-
-            Layout.fillWidth: true
-            Layout.topMargin: 6
-            Layout.leftMargin: -12
-            Layout.rightMargin: -12
-            leftPadding: 12
-            rightPadding: 12
-            onClicked: {
-                root.close()
-                root.renameRequested()
-            }
-            Accessible.name: qsTr("Rename this phone. Currently %1").arg(SenderController.deviceName)
-
-            background: Rectangle {
-                radius: Theme.radiusSmall
-                color: phoneRow.down ? Theme.pressed : "transparent"
-            }
-
-            contentItem: RowLayout {
-                spacing: 12
-
-                Icon {
-                    glyph: "smartphone"
-                    size: 20
-                    color: Theme.textMuted
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Label {
-                        text: qsTr("Computers see it as")
+                    Icon {
+                        glyph: "pencil"
+                        size: 18
                         color: Theme.textMuted
-                        font.pixelSize: 12
+                    }
+                }
+            }
+
+            ItemDelegate {
+                id: aboutRow
+
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+                Layout.leftMargin: -12
+                Layout.rightMargin: -12
+                leftPadding: 12
+                rightPadding: 12
+                onClicked: {
+                    root.close()
+                    root.aboutRequested()
+                }
+                Accessible.name: qsTr("About beamr")
+
+                background: Rectangle {
+                    radius: Theme.radiusSmall
+                    color: aboutRow.down ? Theme.pressed : "transparent"
+                }
+
+                contentItem: RowLayout {
+                    spacing: 12
+
+                    Icon {
+                        glyph: "info"
+                        size: 20
+                        color: Theme.textMuted
                     }
 
-                    Label {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: SenderController.deviceName
-                        color: Theme.text
-                        font.pixelSize: 15
-                        elide: Text.ElideRight
-                    }
-                }
+                        spacing: 0
 
-                Icon {
-                    glyph: "pencil"
-                    size: 18
-                    color: Theme.textMuted
-                }
-            }
-        }
+                        Label {
+                            text: qsTr("About beamr")
+                            color: Theme.text
+                            font.pixelSize: 15
+                        }
 
-        ItemDelegate {
-            id: aboutRow
-
-            Layout.fillWidth: true
-            Layout.topMargin: 8
-            Layout.bottomMargin: 8
-            Layout.leftMargin: -12
-            Layout.rightMargin: -12
-            leftPadding: 12
-            rightPadding: 12
-            onClicked: {
-                root.close()
-                root.aboutRequested()
-            }
-            Accessible.name: qsTr("About beamr")
-
-            background: Rectangle {
-                radius: Theme.radiusSmall
-                color: aboutRow.down ? Theme.pressed : "transparent"
-            }
-
-            contentItem: RowLayout {
-                spacing: 12
-
-                Icon {
-                    glyph: "info"
-                    size: 20
-                    color: Theme.textMuted
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Label {
-                        text: qsTr("About beamr")
-                        color: Theme.text
-                        font.pixelSize: 15
+                        Label {
+                            text: qsTr("Version %1 · open source").arg(root.appVersion)
+                            color: Theme.textMuted
+                            font.pixelSize: 12
+                        }
                     }
 
-                    Label {
-                        text: qsTr("Version %1 · open source").arg(root.appVersion)
-                        color: Theme.textMuted
-                        font.pixelSize: 12
+                    Icon {
+                        glyph: "chevron-right"
+                        size: 18
+                        color: Theme.textFaint
                     }
-                }
-
-                Icon {
-                    glyph: "chevron-right"
-                    size: 18
-                    color: Theme.textFaint
                 }
             }
         }

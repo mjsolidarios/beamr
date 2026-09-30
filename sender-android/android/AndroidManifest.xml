@@ -31,7 +31,7 @@
         android:allowBackup="true"
         android:fullBackupOnly="false">
         <activity
-            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:name="com.beamr.sender.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:label="beamr"
             android:launchMode="singleTop"
@@ -58,6 +58,21 @@
             android:excludeFromRecents="true"
             android:noHistory="false"
             android:exported="false" />
+
+        <!-- Quick Settings tile: cast to the last computer, or stop. -->
+        <service
+            android:name="com.beamr.sender.CastTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_cast"
+            android:label="beamr"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
 
         <service
             android:name="com.beamr.sender.ScreenCaptureService"

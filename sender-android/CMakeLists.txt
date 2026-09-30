@@ -28,6 +28,7 @@ qt_add_qml_module(beamr_sender
         qml/ReceiverRow.qml
         qml/SectionLabel.qml
         qml/SessionRow.qml
+        qml/SegmentedControl.qml
         qml/SettingsSheet.qml
         qml/SoundSwitch.qml
         qml/Theme.qml

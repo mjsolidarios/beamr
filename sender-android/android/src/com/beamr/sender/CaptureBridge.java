@@ -31,12 +31,35 @@ public final class CaptureBridge {
     // One Opus packet; called on the audio thread, same rules as nativeFrame.
     static native void nativeAudio(ByteBuffer buffer, int offset, int size, long ptsUs);
     static native void nativeAudioState(String state);
+    static native void nativeQuickCast();
+
+    // The tile asked to cast. C++ may not be running yet (a cold start), so
+    // it's kept until SenderController asks for it.
+    private static volatile boolean sQuickCastPending;
+    private static volatile boolean sNativesReady;
+
+    static void quickCastRequested() {
+        if (sNativesReady)
+            nativeQuickCast();
+        else
+            sQuickCastPending = true;
+    }
+
+    // Called by SenderController once its natives are registered: true if the
+    // tile asked before then.
+    public static boolean takePendingQuickCast() {
+        sNativesReady = true;
+        boolean pending = sQuickCastPending;
+        sQuickCastPending = false;
+        return pending;
+    }
 
     // Shows the system consent dialog (and, for sound, the record-audio
     // permission), then starts ScreenCaptureService.
-    public static void requestCapture(Context context, boolean audio) {
+    public static void requestCapture(Context context, boolean audio, int quality) {
         Intent intent = new Intent(context, ProjectionRequestActivity.class)
-                .putExtra(ScreenCaptureService.EXTRA_AUDIO, audio);
+                .putExtra(ScreenCaptureService.EXTRA_AUDIO, audio)
+                .putExtra(ScreenCaptureService.EXTRA_QUALITY, quality);
         if (!(context instanceof Activity))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
