@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QTcpSocket>
 #include <QTimer>
@@ -15,13 +16,14 @@ class ReceiverSession : public QObject
 
 public:
     // Ready: allowed, no video yet. Streaming: video connection open.
-    enum State { Connecting, AwaitingApproval, Ready, Streaming };
+    // Reconnecting: the connection dropped; trying to get back in.
+    enum State { Connecting, AwaitingApproval, Ready, Streaming, Reconnecting };
     Q_ENUM(State)
 
-    // `screen` is the receiver screen to cast to, from its QR code; empty
-    // lets the receiver pick.
+    // `screen` is the receiver screen to cast to and `pair` its one-time
+    // code, both from its QR code; empty lets the receiver pick and ask.
     ReceiverSession(const QString &host, quint16 port, const QString &endpoint, const beamr::DeviceInfo &device,
-                    const QString &screen, QObject *parent = nullptr);
+                    const QString &screen, const QString &pair, QObject *parent = nullptr);
 
     QString id() const { return m_id; }
     QString host() const { return m_host; }
@@ -58,6 +60,10 @@ private:
     void onReadyRead();
     void onSocketError(QAbstractSocket::SocketError error);
     void onDisconnected();
+    // After a drop, if the receiver gave us a way back: retry until it lets
+    // us in or its grace period runs out.
+    bool beginReconnect();
+    void retry();
 
     const QString m_id;
     const QString m_host;
@@ -65,11 +71,15 @@ private:
     const QString m_endpoint;
     const beamr::DeviceInfo m_device;
     const QString m_screen;
+    const QString m_pair;
     QString m_name;
     QString m_streamToken;
+    QString m_resume;
     bool m_playsAudio = false;
     State m_state = Connecting;
     bool m_ended = false;
     QTcpSocket m_socket;
     QTimer m_timeout;
+    QTimer m_retryTimer;
+    QElapsedTimer m_sinceDrop;
 };

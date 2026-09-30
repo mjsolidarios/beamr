@@ -11,6 +11,7 @@
 #include "sessionmodel.h"
 
 class ReceiverSession;
+class DiscoveryClient;
 class StreamSender;
 
 // What the home screen drives: the receivers this phone is connected to,
@@ -26,6 +27,8 @@ class SenderController : public QObject
     Q_PROPERTY(SessionModel *sessions READ sessions CONSTANT)
     Q_PROPERTY(int approvedCount READ approvedCount NOTIFY sessionsChanged)
     Q_PROPERTY(int streamingCount READ streamingCount NOTIFY sessionsChanged)
+    // Receivers that dropped off and are being reconnected to.
+    Q_PROPERTY(int reconnectingCount READ reconnectingCount NOTIFY sessionsChanged)
     Q_PROPERTY(bool canAddReceiver READ canAddReceiver NOTIFY sessionsChanged)
     Q_PROPERTY(int maxReceivers READ maxReceivers CONSTANT)
     Q_PROPERTY(CastState castState READ castState NOTIFY castStateChanged)
@@ -38,6 +41,10 @@ class SenderController : public QObject
     Q_PROPERTY(QString deviceModel READ deviceModel CONSTANT)
     Q_PROPERTY(QString lastAddress READ lastAddress NOTIFY recentReceiversChanged)
     Q_PROPERTY(QVariantList recentReceivers READ recentReceivers NOTIFY recentReceiversChanged)
+    // Receivers answering on this network right now, not already connected:
+    // [{name, address, freeScreens}]. Filled while `discovering` is on.
+    Q_PROPERTY(QVariantList nearbyReceivers READ nearbyReceivers NOTIFY nearbyReceiversChanged)
+    Q_PROPERTY(bool discovering READ discovering WRITE setDiscovering NOTIFY discoveringChanged)
     Q_PROPERTY(int defaultPort READ defaultPort CONSTANT)
     Q_PROPERTY(bool canScan READ canScan CONSTANT)
     // The first-launch introduction has been seen (or skipped).
@@ -54,7 +61,7 @@ class SenderController : public QObject
 
 public:
     // Mirrors ReceiverSession::State for QML.
-    enum SessionState { Connecting, AwaitingApproval, Ready, Streaming };
+    enum SessionState { Connecting, AwaitingApproval, Ready, Streaming, Reconnecting };
     Q_ENUM(SessionState)
     // Starting: waiting for the user to allow screen capture.
     enum CastState { Off, Starting, On };
@@ -66,6 +73,7 @@ public:
     SessionModel *sessions() { return &m_sessions; }
     int approvedCount() const;
     int streamingCount() const;
+    int reconnectingCount() const;
     bool canAddReceiver() const;
     int maxReceivers() const;
     CastState castState() const { return m_castState; }
@@ -87,12 +95,17 @@ public:
     QString deviceModel() const { return m_device.model; }
     QString lastAddress() const;
     QVariantList recentReceivers() const { return m_recent; }
+    QVariantList nearbyReceivers() const;
+    bool discovering() const { return m_discovering; }
+    // On while the home screen is showing and the app is in front.
+    void setDiscovering(bool discovering);
     int defaultPort() const;
 
     // Empty when `address` can be added, otherwise what's wrong with it.
     Q_INVOKABLE QString validateAddress(const QString &address) const;
-    // `screen` picks one of the receiver's screens (from its QR code).
-    Q_INVOKABLE void addReceiver(const QString &address, const QString &screen = {});
+    // `screen` and `pair` come from a receiver's QR code: which of its
+    // screens, and the one-time code that skips asking.
+    Q_INVOKABLE void addReceiver(const QString &address, const QString &screen = {}, const QString &pair = {});
     Q_INVOKABLE void removeReceiver(const QString &sessionId);
     Q_INVOKABLE void disconnectAll();
     Q_INVOKABLE bool isConnectedTo(const QString &address) const;
@@ -114,6 +127,8 @@ signals:
     void messageChanged();
     void deviceNameChanged();
     void recentReceiversChanged();
+    void nearbyReceiversChanged();
+    void discoveringChanged();
     void colorSchemeChanged();
     void shareAudioChanged();
     void onboardingDoneChanged();
@@ -149,6 +164,8 @@ private:
     QSize m_castSize;
     QThread m_streamThread;
     StreamSender *m_stream = nullptr;
+    DiscoveryClient *m_discovery = nullptr;
+    bool m_discovering = false;
     QString m_message;
     bool m_messageIsError = false;
     QString m_retryAddress;

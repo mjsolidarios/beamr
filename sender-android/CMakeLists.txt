@@ -10,6 +10,7 @@ qt_add_qml_module(beamr_sender
     URI Beamr.Sender
     VERSION 1.0
     SOURCES
+        src/discoveryclient.h src/discoveryclient.cpp
         src/receiversession.h src/receiversession.cpp
         src/sendercontroller.h src/sendercontroller.cpp
         src/sessionmodel.h src/sessionmodel.cpp
@@ -24,6 +25,7 @@ qt_add_qml_module(beamr_sender
         qml/OnboardingArt.qml
         qml/OnboardingView.qml
         qml/PillButton.qml
+        qml/ReceiverRow.qml
         qml/SectionLabel.qml
         qml/SessionRow.qml
         qml/SettingsSheet.qml

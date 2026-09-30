@@ -82,8 +82,12 @@ public:
     // `screenId`, or anywhere when empty), or hung up before or during its
     // cast.
     void handleIncomingRequest(const QString &requestId, const beamr::DeviceInfo &device,
-                               const QString &address, const QString &screenId);
-    void senderLeft(const QString &requestId);
+                               const QString &address, const QString &screenId, const QString &pair,
+                               const QString &resume);
+    // `intentional`: it said bye. Otherwise its screen waits for it to come back.
+    void senderLeft(const QString &requestId, bool intentional);
+    // Sent with an accepted answer so the phone can come back after a drop.
+    QString resumeTokenFor(const QString &requestId) const;
     // The sender's video: whether a stream for `requestId` may start, its
     // packets, and its end.
     bool isCasting(const QString &requestId) const;

@@ -16,11 +16,17 @@ constexpr int kConnectTimeoutMs = 8'000;
 // The receiver expires a request after 60 s and says so; this only catches a
 // receiver that went quiet.
 constexpr int kApprovalTimeoutMs = 75'000;
+constexpr int kRetryIntervalMs = 1'500;
+// Coming back: how long one connection attempt may take with the network
+// still down, and how long to wait for the receiver to take us back.
+constexpr int kReconnectAttemptMs = 4'000;
+constexpr int kResumeAnswerMs = 3'000;
 
 } // namespace
 
 ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QString &endpoint,
-                                 const beamr::DeviceInfo &device, const QString &screen, QObject *parent)
+                                 const beamr::DeviceInfo &device, const QString &screen, const QString &pair,
+                                 QObject *parent)
     : QObject(parent)
     , m_id(QUuid::createUuid().toString(QUuid::WithoutBraces))
     , m_host(host)
@@ -28,6 +34,7 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
     , m_endpoint(endpoint)
     , m_device(device)
     , m_screen(screen)
+    , m_pair(pair)
     , m_name(endpoint)
 {
     m_timeout.setSingleShot(true);
@@ -40,8 +47,22 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
                 true);
         } else if (m_state == AwaitingApproval) {
             end(tr("“%1” didn't answer. Try again.").arg(m_name), true);
+        } else if (m_state == Reconnecting) {
+            if (m_socket.state() == QAbstractSocket::ConnectedState) {
+                // It said hello but didn't take us back (it let go of our
+                // screen); it's asking the person at the computer instead.
+                setState(AwaitingApproval);
+                m_timeout.start(kApprovalTimeoutMs);
+            } else {
+                // No network yet: this attempt would hang. Try again.
+                m_socket.abort();
+                retry();
+            }
         }
     });
+
+    m_retryTimer.setSingleShot(true);
+    connect(&m_retryTimer, &QTimer::timeout, this, &ReceiverSession::retry);
 
     connect(&m_socket, &QTcpSocket::connected, this, &ReceiverSession::onConnected);
     connect(&m_socket, &QTcpSocket::readyRead, this, &ReceiverSession::onReadyRead);
@@ -60,6 +81,7 @@ void ReceiverSession::close()
 {
     m_ended = true;
     m_timeout.stop();
+    m_retryTimer.stop();
     if (m_socket.state() == QAbstractSocket::ConnectedState) {
         m_socket.write(protocol::encode({{"type", protocol::kBye}}));
         m_socket.disconnectFromHost();
@@ -70,7 +92,9 @@ void ReceiverSession::close()
 
 void ReceiverSession::setStreaming(bool streaming)
 {
-    if (!isApproved())
+    // Not while reconnecting: the video drops with the connection, and that
+    // mustn't look like being back.
+    if (m_state != Ready && m_state != Streaming)
         return;
     setState(streaming ? Streaming : Ready);
 }
@@ -90,6 +114,7 @@ void ReceiverSession::end(const QString &message, bool isError)
     qCInfo(lcNet) << "session with" << m_endpoint << "ended:" << message;
     m_ended = true;
     m_timeout.stop();
+    m_retryTimer.stop();
     m_socket.abort();
     emit ended(message, isError);
 }
@@ -107,6 +132,11 @@ void ReceiverSession::onConnected()
     };
     if (!m_screen.isEmpty())
         hello.insert("screen", m_screen);
+    // Coming back shows the resume code; the pairing code is good only once.
+    if (m_state == Reconnecting)
+        hello.insert("resume", m_resume);
+    else if (!m_pair.isEmpty())
+        hello.insert("pair", m_pair);
     m_socket.write(protocol::encode(hello));
 }
 
@@ -127,14 +157,24 @@ void ReceiverSession::onReadyRead()
             const QString name = message->value("name").toString().trimmed();
             m_name = name.isEmpty() ? m_endpoint : name;
             m_playsAudio = message->value("audio").toArray().contains(QLatin1StringView(protocol::kCodecOpus));
-            m_timeout.start(kApprovalTimeoutMs);
-            setState(AwaitingApproval);
+            // Coming back: the answer follows at once; keep saying so.
+            if (m_state == Reconnecting) {
+                m_timeout.start(kResumeAnswerMs);
+            } else {
+                m_timeout.start(kApprovalTimeoutMs);
+                setState(AwaitingApproval);
+            }
             emit changed();
             emit welcomed();
         } else if (type == QLatin1StringView(protocol::kAnswer)) {
             if (message->value("accepted").toBool()) {
                 m_timeout.stop();
                 m_streamToken = message->value("streamToken").toString();
+                m_resume = message->value("resume").toString();
+                if (m_sinceDrop.isValid()) {
+                    qCInfo(lcNet) << "back with" << m_endpoint << "after" << m_sinceDrop.elapsed() << "ms";
+                    m_sinceDrop.invalidate();
+                }
                 setState(Ready);
                 emit approved();
                 continue;
@@ -162,6 +202,13 @@ void ReceiverSession::onSocketError(QAbstractSocket::SocketError error)
     // A closed connection is handled in onDisconnected().
     if (m_ended || error == QAbstractSocket::RemoteHostClosedError)
         return;
+    if (m_state == Reconnecting) {
+        // Still away; try again shortly, or give up when time's out.
+        m_retryTimer.start(kRetryIntervalMs);
+        return;
+    }
+    if (beginReconnect())
+        return;
 
     switch (error) {
     case QAbstractSocket::ConnectionRefusedError:
@@ -185,8 +232,41 @@ void ReceiverSession::onSocketError(QAbstractSocket::SocketError error)
 
 void ReceiverSession::onDisconnected()
 {
+    if (m_ended)
+        return;
+    if (m_state == Reconnecting) {
+        m_retryTimer.start(kRetryIntervalMs);
+        return;
+    }
+    if (beginReconnect())
+        return;
     if (m_state == Connecting)
         end(tr("%1 closed the connection. Is it a beamr receiver?").arg(m_endpoint), true);
     else
         end(tr("Lost the connection to “%1”.").arg(m_name), true);
+}
+
+bool ReceiverSession::beginReconnect()
+{
+    if (m_ended || !isApproved() || m_resume.isEmpty())
+        return false;
+    qCInfo(lcNet) << "lost" << m_endpoint << "; trying to get back in";
+    m_sinceDrop.start();
+    setState(Reconnecting);
+    m_retryTimer.start(kRetryIntervalMs);
+    return true;
+}
+
+void ReceiverSession::retry()
+{
+    if (m_ended || m_state != Reconnecting)
+        return;
+    // The receiver lets go of our screen after this; no point trying longer.
+    if (m_sinceDrop.elapsed() > protocol::kResumeGraceMs) {
+        end(tr("Lost the connection to “%1”.").arg(m_name), true);
+        return;
+    }
+    m_socket.abort();
+    m_timeout.start(kReconnectAttemptMs);
+    m_socket.connectToHost(m_host, m_port);
 }

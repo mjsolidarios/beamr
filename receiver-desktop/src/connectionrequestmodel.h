@@ -17,6 +17,10 @@ struct ConnectionRequest
     bool demo = false;
     // The screen the phone asked for (from its QR code); empty for any.
     QString screenId;
+    // The QR code's one-time pairing code, and the code for coming back
+    // after a drop; see beamr/protocol.h.
+    QString pair;
+    QString resume;
 };
 
 // Senders waiting for the user to allow or decline their cast.

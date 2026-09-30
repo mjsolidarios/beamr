@@ -10,14 +10,25 @@ class QIODevice;
 // Control channel between sender and receiver: newline-delimited JSON
 // objects over TCP on kDefaultControlPort.
 //
-//   sender   -> receiver  {"type":"hello","version":1,"deviceId":..,"name":..,"model":..,"screen":..}
+//   sender   -> receiver  {"type":"hello","version":1,"deviceId":..,"name":..,"model":..,
+//                          "screen":..,"pair":..,"resume":..}
 //   receiver -> sender    {"type":"welcome","name":<receiver name>,"audio":["opus"]}   right after hello
-//   receiver -> sender    {"type":"answer","accepted":true|false,"reason":..,"streamToken":..}
+//   receiver -> sender    {"type":"answer","accepted":true|false,"reason":..,"streamToken":..,"resume":..}
 //   receiver -> sender    {"type":"keyframe"}    send a keyframe soon (e.g. a recording starts)
 //   either   -> other     {"type":"bye"}, then the connection closes
 //
 // "screen" is optional: the id from a receiver's QR code, naming which of
 // its screens to show the cast on. Without it the receiver picks a free one.
+// "pair", also from the QR code, is a one-time code that skips approval.
+// "resume" comes back in an accepted answer: if the connection drops, the
+// phone reconnects within kResumeGraceMs with it and carries on in the same
+// screen without asking again.
+//
+// Discovery: the phone broadcasts {"type":"discover","version":1} to UDP
+// port kDiscoveryPort; each receiver replies to the sender with
+// {"type":"receiver","version":1,"name":..,"port":..,"freeScreens":n}. The
+// reply's source address is the receiver's address. Replies never carry
+// pairing codes: being on the network doesn't skip approval.
 //
 // A rejected answer carries a reason ("declined", "expired" or
 // "unsupported") and the receiver closes the connection after it. An
@@ -44,6 +55,12 @@ inline constexpr char kWelcome[] = "welcome";
 inline constexpr char kAnswer[] = "answer";
 inline constexpr char kBye[] = "bye";
 inline constexpr char kKeyFrame[] = "keyframe";
+inline constexpr char kDiscover[] = "discover";
+inline constexpr char kReceiver[] = "receiver";
+
+// How long a receiver holds a dropped phone's screen for it to come back.
+// Phones can take 20 s just to rejoin Wi-Fi after a drop.
+inline constexpr int kResumeGraceMs = 30'000;
 inline constexpr char kStream[] = "stream";
 inline constexpr char kCodecH264[] = "h264";
 inline constexpr char kCodecOpus[] = "opus";

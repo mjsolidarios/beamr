@@ -19,6 +19,8 @@ namespace {
 
 const char kRequestIdProperty[] = "beamrRequestId";
 const char kMediaProperty[] = "beamrMedia";
+// The phone said bye: it left on purpose, so don't hold its screen.
+const char kSaidByeProperty[] = "beamrSaidBye";
 
 QString requestIdOf(const QTcpSocket *socket)
 {
@@ -116,6 +118,7 @@ void ControlServer::onReadyRead(QTcpSocket *socket)
         } else if (type == QLatin1StringView(protocol::kStream) && requestIdOf(socket).isEmpty()) {
             handleStream(socket, *message);
         } else if (type == QLatin1StringView(protocol::kBye)) {
+            socket->setProperty(kSaidByeProperty, true);
             socket->disconnectFromHost();
             return;
         }
@@ -148,7 +151,9 @@ void ControlServer::handleHello(QTcpSocket *socket, const QJsonObject &hello)
                   {"name", m_controller->receiverName()},
                   {"audio", QJsonArray{protocol::kCodecOpus}}});
     m_controller->handleIncomingRequest(requestId, device, displayAddress(socket->peerAddress()),
-                                        hello.value("screen").toString().left(32));
+                                        hello.value("screen").toString().left(32),
+                                        hello.value("pair").toString().left(64),
+                                        hello.value("resume").toString().left(64));
 }
 
 void ControlServer::handleStream(QTcpSocket *socket, const QJsonObject &stream)
@@ -208,7 +213,7 @@ void ControlServer::onDisconnected(QTcpSocket *socket)
     // Still in m_peers means the phone hung up, not us.
     if (!requestId.isEmpty() && m_peers.remove(requestId)) {
         qCInfo(lcNet) << "sender left" << displayAddress(socket->peerAddress());
-        m_controller->senderLeft(requestId);
+        m_controller->senderLeft(requestId, socket->property(kSaidByeProperty).toBool());
     }
     socket->deleteLater();
 }
@@ -219,7 +224,10 @@ void ControlServer::answer(const QString &requestId, bool accepted, const char *
         if (QTcpSocket *socket = m_peers.value(requestId)) {
             const QString token = QUuid::createUuid().toString(QUuid::Id128);
             m_streamTokens.insert(token, requestId);
-            send(socket, {{"type", protocol::kAnswer}, {"accepted", true}, {"streamToken", token}});
+            send(socket, {{"type", protocol::kAnswer},
+                          {"accepted", true},
+                          {"streamToken", token},
+                          {"resume", m_controller->resumeTokenFor(requestId)}});
         }
         return;
     }

@@ -15,6 +15,7 @@ ItemDelegate {
 
     readonly property bool pending: sessionState === SenderController.Connecting
                                     || sessionState === SenderController.AwaitingApproval
+                                    || sessionState === SenderController.Reconnecting
     readonly property bool streaming: sessionState === SenderController.Streaming
     readonly property color tone: streaming ? Theme.success : pending ? Theme.accent : Theme.textMuted
 
@@ -93,6 +94,7 @@ ItemDelegate {
                         switch (root.sessionState) {
                         case SenderController.Connecting: return qsTr("Connecting…")
                         case SenderController.AwaitingApproval: return qsTr("Allow this phone on the computer")
+                        case SenderController.Reconnecting: return qsTr("Reconnecting…")
                         // The address tells apart computers with the same name.
                         case SenderController.Streaming: return qsTr("Live · %1").arg(root.address)
                         default: return qsTr("Connected · %1").arg(root.address)

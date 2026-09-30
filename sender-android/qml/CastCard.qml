@@ -83,7 +83,9 @@ Rectangle {
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.live ? (root.receivers === 1 ? qsTr("Casting to 1 receiver")
+                    text: root.live && root.receivers === 0 && SenderController.reconnectingCount > 0
+                          ? qsTr("Reconnecting…")
+                        : root.live ? (root.receivers === 1 ? qsTr("Casting to 1 receiver")
                                                             : qsTr("Casting to %1 receivers").arg(root.receivers))
                         : root.castState === SenderController.Starting ? qsTr("Allow screen sharing")
                         : root.receivers === 1 ? qsTr("Cast to 1 receiver")

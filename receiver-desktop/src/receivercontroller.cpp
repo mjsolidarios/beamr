@@ -18,6 +18,7 @@
 #include <beamr/log.h>
 
 #include "controlserver.h"
+#include "discoveryresponder.h"
 
 namespace {
 
@@ -101,6 +102,11 @@ ReceiverController::ReceiverController(QObject *parent)
     appendScreen();
     refreshAddresses();
 
+    auto *discovery = new DiscoveryResponder(this);
+    if (!discovery->listen(beamr::kDiscoveryPort))
+        qCWarning(lcNet) << "can't answer discovery on UDP port" << beamr::kDiscoveryPort
+                         << "; phones will need the QR code or the address";
+
     auto *server = new ControlServer(this);
     if (!server->listen(controlPort())) {
         qCWarning(lcNet) << "can't listen on control port" << controlPort() << server->errorString();
@@ -131,6 +137,7 @@ CastScreen *ReceiverController::appendScreen()
     connect(screen, &CastScreen::notify, this, &ReceiverController::notify);
     connect(screen, &CastScreen::recordingSaved, m_recordings, &RecordingsModel::refresh);
     connect(screen, &CastScreen::keyFrameNeeded, this, &ReceiverController::keyFrameNeeded);
+    connect(screen, &CastScreen::pairTokenChanged, this, &ReceiverController::updateConnectLinks);
     connect(screen, &CastScreen::castStopped, this, &ReceiverController::castStopped);
     connect(screen, &CastScreen::castingChanged, this, [this, screen] {
         onCastingChanged(screen);
@@ -201,7 +208,8 @@ void ReceiverController::updateConnectLinks()
             screen->setConnectLink({});
             continue;
         }
-        beamr::ConnectLink link{m_receiverName, screen->screenId(), m_addresses, quint16(port())};
+        beamr::ConnectLink link{m_receiverName, screen->screenId(), screen->pairToken(), m_addresses,
+                                quint16(port())};
         screen->setConnectLink(link.toString());
     }
 }
@@ -347,19 +355,31 @@ bool ReceiverController::demoAvailable() const
 }
 
 void ReceiverController::handleIncomingRequest(const QString &requestId, const beamr::DeviceInfo &device,
-                                               const QString &address, const QString &screenId)
+                                               const QString &address, const QString &screenId,
+                                               const QString &pair, const QString &resume)
 {
-    addRequest({requestId, device, address, QDateTime(), false, screenId});
+    addRequest({requestId, device, address, QDateTime(), false, screenId, pair, resume});
 }
 
-void ReceiverController::senderLeft(const QString &requestId)
+QString ReceiverController::resumeTokenFor(const QString &requestId) const
+{
+    const CastScreen *screen = screenCasting(requestId);
+    return screen ? screen->resumeToken() : QString();
+}
+
+void ReceiverController::senderLeft(const QString &requestId, bool intentional)
 {
     if (const std::optional<ConnectionRequest> request = m_requests.take(requestId)) {
         emit notify(tr("%1 cancelled the request").arg(request->device.name));
         return;
     }
-    if (CastScreen *screen = screenCasting(requestId))
+    CastScreen *screen = screenCasting(requestId);
+    if (!screen)
+        return;
+    if (intentional || screen->demo())
         screen->stopCasting();
+    else
+        screen->holdForReconnect();
 }
 
 void ReceiverController::addRequest(ConnectionRequest request)
@@ -368,10 +388,33 @@ void ReceiverController::addRequest(ConnectionRequest request)
         request.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     request.expiresAt = QDateTime::currentDateTime().addSecs(kRequestTimeoutSec);
 
-    if (!m_requireApproval || isTrusted(request.device.id)) {
-        qCInfo(lcBeamr) << "auto-accepting" << request.device.name << request.address;
-        emit requestAnswered(request.requestId, true);
+    // Back after a drop: straight into the screen it was holding.
+    if (!request.resume.isEmpty()) {
+        for (CastScreen *screen : std::as_const(m_screens)) {
+            // Not only while holding: after a Wi-Fi blip the old connection
+            // can look alive here long after the phone gave up on it.
+            if (screen->casting() && screen->resumeToken() == request.resume
+                && screen->active().device.id == request.device.id) {
+                screen->resume(request);
+                emit requestAnswered(request.requestId, true);
+                return;
+            }
+        }
+    }
+
+    // Scanned the screen's code: the phone is in the room, no need to ask.
+    // The code is used up, so a photo of the QR can't be reused later.
+    CastScreen *paired = screenById(request.screenId);
+    const bool pairedByCode = paired && !request.pair.isEmpty() && request.pair == paired->pairToken();
+    if (pairedByCode)
+        paired->rotatePairToken();
+
+    if (pairedByCode || !m_requireApproval || isTrusted(request.device.id)) {
+        qCInfo(lcBeamr) << "auto-accepting" << request.device.name << request.address
+                        << (pairedByCode ? "(scanned the code)" : "");
+        // Start first: the answer carries the screen's resume code.
         startCasting(request);
+        emit requestAnswered(request.requestId, true);
         return;
     }
 
@@ -386,8 +429,8 @@ void ReceiverController::accept(const QString &requestId, bool alwaysAllow)
         return;
     if (alwaysAllow)
         trust(request->device);
-    emit requestAnswered(requestId, true);
     startCasting(*request);
+    emit requestAnswered(requestId, true);
 }
 
 void ReceiverController::decline(const QString &requestId)

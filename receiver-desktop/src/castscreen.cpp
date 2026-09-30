@@ -5,9 +5,11 @@
 #include <QFileInfo>
 #include <QRandomGenerator>
 #include <QRegularExpression>
+#include <QUuid>
 #include <QVideoFrame>
 
 #include <beamr/log.h>
+#include <beamr/protocol.h>
 
 #include "audioplayer.h"
 #include "recorder.h"
@@ -26,13 +28,26 @@ QString newScreenId()
     return id;
 }
 
+QString newToken()
+{
+    return QUuid::createUuid().toString(QUuid::Id128);
+}
+
 } // namespace
 
 CastScreen::CastScreen(int number, QObject *parent)
     : QObject(parent)
     , m_id(newScreenId())
     , m_number(number)
+    , m_pairToken(newToken())
 {
+    m_reconnectTimer.setSingleShot(true);
+    m_reconnectTimer.setInterval(beamr::protocol::kResumeGraceMs);
+    connect(&m_reconnectTimer, &QTimer::timeout, this, [this] {
+        const QString name = m_active.device.name;
+        end();
+        emit notify(tr("%1 didn't come back").arg(name));
+    });
     m_decoder = new VideoDecoder;
     m_decoder->moveToThread(&m_decoderThread);
     connect(&m_decoderThread, &QThread::finished, m_decoder, &QObject::deleteLater);
@@ -59,6 +74,40 @@ CastScreen::~CastScreen()
 {
     m_decoderThread.quit();
     m_decoderThread.wait();
+}
+
+void CastScreen::rotatePairToken()
+{
+    m_pairToken = newToken();
+    emit pairTokenChanged();
+}
+
+void CastScreen::holdForReconnect()
+{
+    if (!casting() || m_reconnecting)
+        return;
+    qCInfo(lcNet) << "screen" << m_number << "holding for" << m_active.device.name;
+    m_reconnecting = true;
+    m_reconnectTimer.start();
+    emit reconnectingChanged();
+}
+
+void CastScreen::resume(const ConnectionRequest &request)
+{
+    qCInfo(lcNet) << "screen" << m_number << request.device.name << "is back";
+    m_reconnectTimer.stop();
+    // The old connection may still look open; let it go.
+    if (m_active.requestId != request.requestId)
+        emit castStopped(m_active.requestId);
+    m_active = request;
+    // The new stream starts at a keyframe; drop what the old one left half done.
+    resetVideo();
+    resetAudio();
+    if (m_reconnecting) {
+        m_reconnecting = false;
+        emit reconnectingChanged();
+    }
+    emit castingChanged();
 }
 
 void CastScreen::setNumber(int number)
@@ -126,6 +175,12 @@ void CastScreen::start(const ConnectionRequest &request)
     resetAudio();
 
     m_active = request;
+    m_resumeToken = newToken();
+    m_reconnectTimer.stop();
+    if (m_reconnecting) {
+        m_reconnecting = false;
+        emit reconnectingChanged();
+    }
     if (m_paused) {
         m_paused = false;
         updateMute();
@@ -149,6 +204,12 @@ void CastScreen::end()
         stopRecording();
     const QString requestId = m_active.requestId;
     m_active = {};
+    m_resumeToken.clear();
+    m_reconnectTimer.stop();
+    if (m_reconnecting) {
+        m_reconnecting = false;
+        emit reconnectingChanged();
+    }
     resetVideo();
     resetAudio();
     if (m_paused) {

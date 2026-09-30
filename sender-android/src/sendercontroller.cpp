@@ -7,6 +7,7 @@
 #include <QSettings>
 #include <QStyleHints>
 #include <QSysInfo>
+#include <QTimer>
 #include <QUuid>
 
 #include <algorithm>
@@ -22,6 +23,7 @@
 #include <beamr/log.h>
 #include <beamr/protocol.h>
 
+#include "discoveryclient.h"
 #include "receiversession.h"
 #include "streamsender.h"
 
@@ -196,6 +198,11 @@ SenderController::SenderController(QObject *parent)
     connect(&m_sessions, &SessionModel::countChanged, this, &SenderController::sessionsChanged);
     connect(&m_sessions, &SessionModel::dataChanged, this, &SenderController::sessionsChanged);
 
+    m_discovery = new DiscoveryClient(this);
+    connect(m_discovery, &DiscoveryClient::receiversChanged, this, &SenderController::nearbyReceiversChanged);
+    // Nearby leaves out receivers we're connected to.
+    connect(&m_sessions, &SessionModel::countChanged, this, &SenderController::nearbyReceiversChanged);
+
     m_stream = new StreamSender;
     m_stream->moveToThread(&m_streamThread);
     connect(&m_streamThread, &QThread::finished, m_stream, &QObject::deleteLater);
@@ -233,6 +240,13 @@ int SenderController::streamingCount() const
     const auto &sessions = m_sessions.sessions();
     return int(std::count_if(sessions.cbegin(), sessions.cend(),
                              [](const ReceiverSession *s) { return s->state() == ReceiverSession::Streaming; }));
+}
+
+int SenderController::reconnectingCount() const
+{
+    const auto &sessions = m_sessions.sessions();
+    return int(std::count_if(sessions.cbegin(), sessions.cend(),
+                             [](const ReceiverSession *s) { return s->state() == ReceiverSession::Reconnecting; }));
 }
 
 bool SenderController::canAddReceiver() const
@@ -294,7 +308,27 @@ bool SenderController::isConnectedTo(const QString &address) const
                        [&](const ReceiverSession *s) { return s->endpoint() == display; });
 }
 
-void SenderController::addReceiver(const QString &address, const QString &screen)
+QVariantList SenderController::nearbyReceivers() const
+{
+    QVariantList nearby;
+    const QVariantList found = m_discovery->receivers();
+    for (const QVariant &entry : found) {
+        if (!isConnectedTo(entry.toMap().value("address").toString()))
+            nearby.append(entry);
+    }
+    return nearby;
+}
+
+void SenderController::setDiscovering(bool discovering)
+{
+    if (discovering == m_discovering)
+        return;
+    m_discovering = discovering;
+    m_discovery->setActive(discovering);
+    emit discoveringChanged();
+}
+
+void SenderController::addReceiver(const QString &address, const QString &screen, const QString &pair)
 {
     if (const QString error = validateAddress(address); !error.isEmpty()) {
         setMessage(error, true);
@@ -303,7 +337,8 @@ void SenderController::addReceiver(const QString &address, const QString &screen
     clearMessage();
 
     const Endpoint endpoint = parseEndpoint(address);
-    auto *session = new ReceiverSession(endpoint.host, endpoint.port, displayEndpoint(endpoint), m_device, screen, this);
+    auto *session = new ReceiverSession(endpoint.host, endpoint.port, displayEndpoint(endpoint), m_device, screen,
+                                        pair, this);
     connect(session, &ReceiverSession::welcomed, this, [this, session] { rememberReceiver(session); });
     connect(session, &ReceiverSession::approved, this, [this, session] { onSessionApproved(session); });
     connect(session, &ReceiverSession::keyFrameRequested, this, [this] {
@@ -344,6 +379,8 @@ void SenderController::onSessionApproved(ReceiverSession *session)
         // Joins when capture starts.
         break;
     case On:
+        // New, or back after a drop: either way any "video dropped" is old news.
+        clearMessage();
         openVideo(session);
         break;
     }
@@ -493,10 +530,15 @@ void SenderController::videoClosed(const QString &sessionId, const QString &erro
     if (!session)
         return;
     session->setStreaming(false);
-    // Asked for, or the control connection is going down too and will
-    // explain itself.
-    if (!error.isEmpty() && m_castState == On)
-        setMessage(tr("Video to “%1” dropped: %2").arg(session->name(), error), true);
+    if (error.isEmpty() || m_castState != On)
+        return;
+    // Often the whole connection is going down and the session will say so,
+    // or come back on its own; the video just noticed first. Give it a moment.
+    QTimer::singleShot(1500, this, [this, sessionId, name = session->name(), error] {
+        ReceiverSession *session = m_sessions.find(sessionId);
+        if (session && m_castState == On && session->state() == ReceiverSession::Ready)
+            setMessage(tr("Video to “%1” dropped: %2").arg(name, error), true);
+    });
 }
 
 void SenderController::forgetReceiver(const QString &address)
@@ -546,7 +588,7 @@ void SenderController::qrScanned(const QString &text)
         haptic(false);
         return;
     }
-    addReceiver(address, link.screen);
+    addReceiver(address, link.screen, link.pair);
 }
 
 void SenderController::qrScanFailed(const QString &reason)

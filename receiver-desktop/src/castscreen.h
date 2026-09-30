@@ -5,6 +5,7 @@
 #include <QPointer>
 #include <QSize>
 #include <QThread>
+#include <QTimer>
 #include <QVideoSink>
 #include <QtQml/qqmlregistration.h>
 
@@ -32,6 +33,8 @@ class CastScreen : public QObject
     Q_PROPERTY(QString deviceName READ deviceName NOTIFY castingChanged)
     Q_PROPERTY(QString deviceAddress READ deviceAddress NOTIFY castingChanged)
     Q_PROPERTY(bool demo READ demo NOTIFY castingChanged)
+    // The phone dropped off; its screen is held for it to come back.
+    Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY reconnectingChanged)
     Q_PROPERTY(bool paused READ paused WRITE setPaused NOTIFY pausedChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
     Q_PROPERTY(int recordingSeconds READ recordingSeconds NOTIFY recordingSecondsChanged)
@@ -57,6 +60,13 @@ public:
     QString deviceName() const { return m_active.device.name; }
     QString deviceAddress() const { return m_active.address; }
     bool demo() const { return m_active.demo; }
+    bool reconnecting() const { return m_reconnecting; }
+    // One-time code in this screen's QR; a phone that shows it may cast here
+    // without asking. Replaced each time it's used.
+    QString pairToken() const { return m_pairToken; }
+    void rotatePairToken();
+    // Lets the casting phone reconnect here after a drop.
+    QString resumeToken() const { return m_resumeToken; }
     bool paused() const { return m_paused; }
     void setPaused(bool paused);
     bool recording() const { return m_recording; }
@@ -70,6 +80,10 @@ public:
 
     // Shows `request`'s phone here, replacing whoever was casting.
     void start(const ConnectionRequest &request);
+    // The phone's connection dropped: hold the screen for kResumeGraceMs.
+    void holdForReconnect();
+    // The same phone is back on a new connection; the cast carries on.
+    void resume(const ConnectionRequest &request);
     void videoPacket(const QByteArray &packet, quint8 flags, qint64 ptsUs);
     void videoEnded();
     void audioPacket(const QByteArray &packet, qint64 ptsUs);
@@ -83,6 +97,9 @@ public:
 
 signals:
     void numberChanged();
+    void reconnectingChanged();
+    // For ReceiverController: the pair code changed, so the QR must too.
+    void pairTokenChanged();
     void connectLinkChanged();
     void castingChanged();
     void pausedChanged();
@@ -112,6 +129,10 @@ private:
     QString m_connectLink;
     ConnectionRequest m_active;
     bool m_paused = false;
+    QString m_pairToken;
+    QString m_resumeToken;
+    bool m_reconnecting = false;
+    QTimer m_reconnectTimer;
 
     bool m_recording = false;
     qint64 m_recordedMs = 0;

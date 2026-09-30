@@ -77,6 +77,33 @@ Item {
         }
     }
 
+    // The phone dropped off; its last picture stays up while it comes back.
+    Rectangle {
+        anchors.fill: parent
+        visible: root.screen.casting && root.screen.reconnecting
+        color: "#b3000000"
+        radius: root.single ? 0 : Theme.radius
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 8
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Reconnecting to %1…").arg(root.screen.deviceName)
+                color: "white"
+                font.pixelSize: 20
+            }
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("The phone dropped off the network. Its screen is held for a few seconds.")
+                color: "#ccffffff"
+                font.pixelSize: 14
+            }
+        }
+    }
+
     // Who's on which screen, when there are several.
     Rectangle {
         anchors.left: parent.left

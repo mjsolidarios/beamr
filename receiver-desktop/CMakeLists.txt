@@ -42,6 +42,7 @@ qt_add_qml_module(beamr_receiver_ui
         src/castscreen.h src/castscreen.cpp
         src/connectionrequestmodel.h src/connectionrequestmodel.cpp
         src/controlserver.h src/controlserver.cpp
+        src/discoveryresponder.h src/discoveryresponder.cpp
         src/qrcodeitem.h src/qrcodeitem.cpp
         src/recorder.h src/recorder.cpp
         src/receivercontroller.h src/receivercontroller.cpp
@@ -70,6 +71,7 @@ qt_add_qml_module(beamr_receiver_ui
         qml/icons/circle-dot.svg
         qml/icons/copy.svg
         qml/icons/download.svg
+        qml/icons/film.svg
         qml/icons/focus.svg
         qml/icons/folder.svg
         qml/icons/layout-grid.svg
