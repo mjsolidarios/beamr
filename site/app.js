@@ -99,7 +99,10 @@ function initMotion() {
     // "More room": the picture widens to the full window as you scroll toward it.
     const stage = document.querySelector('.hero-stage');
     const frame = stage.querySelector('.hero-frame');
-    const gutter = () => document.querySelector('.hero-head').getBoundingClientRect().left;
+    // Inset from the frame's edges to the text column, so it starts aligned with the copy.
+    const gutter = () => document.querySelector('.hero-head').getBoundingClientRect().left - frame.getBoundingClientRect().left;
+    // Past 1440px the frame stops short of the window edges, so it keeps its corners.
+    const radius = () => (frame.getBoundingClientRect().width < innerWidth - 1 ? 22 : 0);
     gsap.timeline({
       scrollTrigger: {
         trigger: stage,
@@ -111,8 +114,8 @@ function initMotion() {
     })
       .fromTo(frame,
         { clipPath: () => `inset(0px ${gutter()}px 0px ${gutter()}px round 22px)` },
-        { clipPath: 'inset(0px 0px 0px 0px round 0px)', ease: 'none' })
-      .fromTo(frame.querySelector('img'), { scale: 1.14 }, { scale: 1, ease: 'none' }, 0);
+        { clipPath: () => `inset(0px 0px 0px 0px round ${radius()}px)`, ease: 'none' })
+      .fromTo(frame.querySelector('img'), { scale: 1.06 }, { scale: 1, ease: 'none' }, 0);
 
     // The beam: one line out of Android, one into each desktop.
     const targets = gsap.utils.toArray('.route-target');
