@@ -1,6 +1,10 @@
-# beamr
+<p align="center">
+  <img src="assets/icon/beamr-icon.svg" width="112" height="112" alt="beamr logo">
+</p>
 
-Low-latency screen casting from an Android phone to computers on the same Wi-Fi.
+<h1 align="center">beamr</h1>
+
+<p align="center">Low-latency screen casting from an Android phone to computers on the same Wi-Fi.</p>
 
 - **sender-android**: the phone app. It captures the screen (or a single
   app) with MediaProjection, encodes H.264 in hardware and streams it, with
