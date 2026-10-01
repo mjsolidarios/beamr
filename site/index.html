@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f7f8">
+  <meta name="theme-color" content="#f3f6f8">
   <meta name="description" content="Cast your Android screen and sound to Windows, macOS, or Linux over Wi-Fi. beamr is a free, open-source screen sharing app with recording and multi-screen support.">
   <title>beamr | Your screen. More room.</title>
   <meta name="robots" content="index, follow, max-image-preview:large">
@@ -48,119 +48,194 @@
   <link rel="apple-touch-icon" href="./assets/beamr-icon.png">
   <link rel="preload" href="./assets/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
   <script>
-    try {
-      const saved = localStorage.getItem('beamr-theme');
-      if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
-    } catch {}
+    (() => {
+      const root = document.documentElement;
+      try {
+        const saved = localStorage.getItem('beamr-theme');
+        if (saved === 'light' || saved === 'dark') root.dataset.theme = saved;
+      } catch {}
+      // Scroll motion hides a few hero elements until GSAP takes over. If the
+      // scripts never arrive, show everything rather than leave a blank hero.
+      if (matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+        root.classList.add('motion');
+        setTimeout(() => { if (!root.classList.contains('motion-ready')) root.classList.remove('motion'); }, 2500);
+      }
+    })();
   </script>
   <link rel="stylesheet" href="./styles.css">
+  <script src="./assets/vendor/gsap.min.js" defer></script>
+  <script src="./assets/vendor/ScrollTrigger.min.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header">
-    <div class="container nav-row">
-      <a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="38" height="38" alt=""><span>beamr</span></a>
-      <nav aria-label="Main navigation">
-        <a class="nav-detail" href="#features">Features</a>
-        <a class="nav-detail" href="#how-it-works">How it works</a>
-        <a class="nav-github" href="https://github.com/mjsolidarios/beamr"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#github-logo"/></svg><span>GitHub</span></a>
-        <button class="theme-toggle icon-button" type="button" aria-label="Switch to dark theme" hidden><svg class="icon theme-moon" aria-hidden="true"><use href="./assets/icons.svg#moon"/></svg><svg class="icon theme-sun" aria-hidden="true"><use href="./assets/icons.svg#sun"/></svg></button>
-        <a class="button button-small" href="#downloads">Download beamr<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down"/></svg></a>
+  <header class="nav">
+    <div class="nav__inner">
+      <a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="34" height="34" alt=""><span>beamr</span></a>
+      <nav class="nav__links" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#faq">FAQ</a>
       </nav>
+      <div class="nav__actions">
+        <a class="icon-button" href="https://github.com/mjsolidarios/beamr" aria-label="beamr on GitHub"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#github-logo"/></svg></a>
+        <button class="theme-toggle icon-button" type="button" aria-label="Switch to dark theme" hidden><svg class="icon theme-moon" aria-hidden="true"><use href="./assets/icons.svg#moon"/></svg><svg class="icon theme-sun" aria-hidden="true"><use href="./assets/icons.svg#sun"/></svg></button>
+        <a class="button button-small" href="#downloads">Download<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down"/></svg></a>
+      </div>
     </div>
   </header>
 
   <main id="main">
-    <section class="hero container" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">A bigger view of your Android.</p>
-        <h1 id="hero-title">Your screen.<br><span>More room.</span></h1>
-        <p class="hero-description">Mirror your Android screen and sound to your computer over Wi-Fi. Free, open source, and easy to start.</p>
-        <div class="hero-actions"><a class="button" href="#downloads">Download beamr<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down"/></svg></a><a class="text-link" href="#how-it-works">How it works<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a></div>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-head">
+        <h1 id="hero-title"><span class="line"><span data-intro>Your screen.</span></span><span class="line"><span class="accent-word" data-intro>More room.</span></span></h1>
+        <div class="hero-side" data-intro>
+          <p class="lede">Mirror your Android screen and sound to your computer over Wi-Fi. Free, open source, and easy to start.</p>
+          <div class="hero-actions">
+            <a class="button" href="#downloads">Download beamr<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down"/></svg></a>
+            <a class="text-link" href="#how-it-works">How it works<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a>
+          </div>
+        </div>
       </div>
-      <figure class="hero-visual">
-        <img class="hero-image" src="./assets/devices-1536.webp" srcset="./assets/devices-768.webp 768w, ./assets/devices-1536.webp 1536w" sizes="(max-width: 767px) 100vw, 58vw" width="1536" height="1024" fetchpriority="high" alt="A phone and laptop showing the same turquoise ocean waves, illustrating screen sharing">
-        <figcaption>Small screen. Shared possibilities.</figcaption>
+      <figure class="hero-stage" data-intro>
+        <div class="hero-frame">
+          <img class="hero-image" src="./assets/devices-1536.webp" srcset="./assets/devices-768.webp 768w, ./assets/devices-1536.webp 1536w" sizes="100vw" width="1536" height="1024" fetchpriority="high" alt="A phone and laptop showing the same turquoise ocean waves, illustrating screen sharing">
+        </div>
+        <figcaption class="container">Small screen. Shared possibilities.</figcaption>
       </figure>
     </section>
 
-    <div class="platforms container" aria-label="Supported platforms">
-      <p>From your Android.<br><strong>To your computer.</strong></p>
-      <div class="platform-flow">
-        <span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#android-logo"/></svg>Android</span>
-        <svg class="icon flow-arrow" aria-hidden="true"><use href="./assets/icons.svg#arrow-right"/></svg>
-        <span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#windows-logo"/></svg>Windows</span>
-        <span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#apple-logo"/></svg>macOS</span>
-        <span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#linux-logo"/></svg>Linux</span>
+    <section class="route container" aria-labelledby="route-title">
+      <div class="route-copy">
+        <h2 id="route-title">From your Android.<br><span class="muted">To your computer.</span></h2>
+        <p>One phone sends. Windows, macOS, and Linux receive. Nothing in between but your own network.</p>
       </div>
-    </div>
-
-    <section class="section container" id="features" aria-labelledby="features-title">
-      <div class="section-intro"><h2 id="features-title">Put your phone<br>in the picture.</h2><p>Walk through an app. Share a video. Record a demo.<br class="desktop-break"> Give whatever is on your phone a little more space.</p></div>
-      <div class="product-showcase">
-        <div class="screenshot-composition">
-          <img class="desktop-shot" src="./assets/desktop.webp" width="1080" height="720" loading="lazy" alt="beamr desktop receiver with a QR code and instructions to connect an Android phone">
-          <img class="phone-shot" src="./assets/android.webp" width="400" height="800" loading="lazy" alt="beamr Android app with Scan QR code, Enter address, and Nearby connection options">
-        </div>
-        <p class="image-caption">The beamr desktop and Android apps. Example connection details shown.</p>
-      </div>
-      <div class="feature-grid">
-        <article><svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#wifi-high"/></svg><div><h3>Made for the same Wi-Fi</h3><p>Send your screen directly across your local network. No account or cloud relay to set up.</p></div></article>
-        <article><svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#squares-four"/></svg><div><h3>Room for four phones</h3><p>Show up to four phones side by side. Focus on one, or pop a screen into its own window.</p></div></article>
-        <article><svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#record"/></svg><div><h3>Keep the good parts</h3><p>Record a cast to MP4, save a screenshot, or pause the picture when you need a closer look.</p></div></article>
-        <article><svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#speaker-high"/></svg><div><h3>Bring the sound along</h3><p>Share supported app audio and choose which phone you hear. Your microphone stays out of the mix.</p></div></article>
+      <div class="route-map" role="img" aria-label="An Android phone sending to Windows, macOS, and Linux computers">
+        <svg class="route-lines" viewBox="0 0 240 100" aria-hidden="true">
+          <path class="route-track" d="M40 50 C 120 50, 120 18, 200 18"/>
+          <path class="route-track" d="M40 50 L 200 50"/>
+          <path class="route-track" d="M40 50 C 120 50, 120 82, 200 82"/>
+          <path class="route-beam" pathLength="1" d="M40 50 C 120 50, 120 18, 200 18"/>
+          <path class="route-beam" pathLength="1" d="M40 50 L 200 50"/>
+          <path class="route-beam" pathLength="1" d="M40 50 C 120 50, 120 82, 200 82"/>
+        </svg>
+        <span class="route-node route-source" style="--x: 16.67%; --y: 50%"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#android-logo"/></svg>Android</span>
+        <span class="route-node route-target" style="--x: 83.33%; --y: 18%"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#windows-logo"/></svg>Windows</span>
+        <span class="route-node route-target" style="--x: 83.33%; --y: 50%"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#apple-logo"/></svg>macOS</span>
+        <span class="route-node route-target" style="--x: 83.33%; --y: 82%"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#linux-logo"/></svg>Linux</span>
       </div>
     </section>
 
-    <section class="setup section" id="how-it-works" aria-labelledby="setup-title">
+    <section class="stack" id="features" aria-labelledby="features-title">
       <div class="container">
-        <div class="section-intro"><p class="eyebrow">Less setup. More sharing.</p><h2 id="setup-title">You’re a few taps away.</h2><p>Start with your phone and computer on the same Wi-Fi network.</p></div>
-        <ol class="setup-steps">
-          <li><div class="step-top"><span class="step-number" aria-hidden="true">1</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></div><h3>Get both apps</h3><p>Install the Android app on your phone and the receiver on your computer. Open beamr on both.</p></li>
-          <li><div class="step-top"><span class="step-number" aria-hidden="true">2</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#qr-code"/></svg></div><h3>Make the connection</h3><p>Scan the computer’s QR code from your phone, or choose your computer under Nearby.</p></li>
-          <li><div class="step-top"><span class="step-number" aria-hidden="true">3</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#broadcast"/></svg></div><h3>Choose what to share</h3><p>Accept any connection request, then allow Android screen capture. Share your whole screen or a single app when offered.</p></li>
-        </ol>
-        <a class="text-link" href="https://github.com/mjsolidarios/beamr#how-it-works">Read the full guide<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a>
+        <div class="section-head" data-reveal>
+          <h2 id="features-title">Put your phone in the picture.</h2>
+          <p>Walk through an app. Share a video. Record a demo. Give whatever is on your phone a little more space.</p>
+        </div>
+        <div class="stack-body">
+          <ol class="stack-list">
+            <li class="feature is-active" data-feature="wifi">
+              <svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#wifi-high"/></svg>
+              <h3>Made for the same Wi-Fi</h3>
+              <p>Send your screen directly across your local network. No account or cloud relay to set up.</p>
+            </li>
+            <li class="feature" data-feature="grid">
+              <svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#squares-four"/></svg>
+              <h3>Room for four phones</h3>
+              <p>Show up to four phones side by side. Focus on one, or pop a screen into its own window.</p>
+            </li>
+            <li class="feature" data-feature="record">
+              <svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#record"/></svg>
+              <h3>Keep the good parts</h3>
+              <p>Record a cast to MP4, save a screenshot, or pause the picture when you need a closer look.</p>
+            </li>
+            <li class="feature" data-feature="sound">
+              <svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#speaker-high"/></svg>
+              <h3>Bring the sound along</h3>
+              <p>Share supported app audio and choose which phone you hear. Your microphone stays out of the mix.</p>
+            </li>
+          </ol>
+          <figure class="stage-wrap">
+            <div class="stage" data-state="wifi">
+              <div class="stage-screens">
+                <img class="stage-desk" src="./assets/desktop.webp" width="1080" height="720" loading="lazy" alt="beamr desktop receiver with a QR code and instructions to connect an Android phone">
+                <div class="stage-grid" aria-hidden="true">
+                  <img src="./assets/android.webp" width="400" height="800" loading="lazy" alt="">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+              <img class="stage-phone" src="./assets/android.webp" width="400" height="800" loading="lazy" alt="beamr Android app with Scan QR code, Enter address, and Nearby connection options">
+              <svg class="stage-beam" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M86 44 C 78 18, 62 12, 48 22"/></svg>
+              <span class="chip chip-wifi" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#wifi-high"/></svg>Local network only</span>
+              <span class="chip chip-grid" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#squares-four"/></svg>4 screens</span>
+              <span class="chip chip-record" aria-hidden="true"><i class="rec-dot"></i>REC · MP4</span>
+              <span class="chip chip-sound" aria-hidden="true"><i class="bars"><i></i><i></i><i></i><i></i></i>Listening to phone 2</span>
+            </div>
+            <figcaption>The beamr desktop and Android apps. Example connection details shown.</figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
-    <section class="section container downloads" id="downloads" aria-labelledby="downloads-title">
-      <div class="section-intro"><h2 id="downloads-title">One for your phone.<br>One for your computer.</h2><p>Get the latest release for both devices. All downloads are free.</p></div>
+    <section class="setup" id="how-it-works" aria-labelledby="setup-title">
+      <div class="container setup-grid">
+        <div class="setup-head">
+          <h2 id="setup-title">You’re a few taps away.</h2>
+          <p>Start with your phone and computer on the same Wi-Fi network.</p>
+          <a class="text-link" href="https://github.com/mjsolidarios/beamr#how-it-works">Read the full guide<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a>
+        </div>
+        <ol class="steps">
+          <li class="rail" aria-hidden="true"><span class="rail-fill"></span></li>
+          <li class="step"><span class="step-dot" aria-hidden="true">1</span><div><h3>Get both apps</h3><p>Install the Android app on your phone and the receiver on your computer. Open beamr on both.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></li>
+          <li class="step"><span class="step-dot" aria-hidden="true">2</span><div><h3>Make the connection</h3><p>Scan the computer’s QR code from your phone, or choose your computer under Nearby.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#qr-code"/></svg></li>
+          <li class="step"><span class="step-dot" aria-hidden="true">3</span><div><h3>Choose what to share</h3><p>Accept any connection request, then allow Android screen capture. Share your whole screen or a single app when offered.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#broadcast"/></svg></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="downloads container" id="downloads" aria-labelledby="downloads-title">
+      <div class="section-head" data-reveal>
+        <h2 id="downloads-title">One for your phone. One for your computer.</h2>
+        <p>Get the latest release for both devices. All downloads are free.</p>
+      </div>
       <div class="download-layout">
-        <article class="android-download">
+        <article class="android-download" data-reveal>
           <div class="download-card-heading"><span class="device-label">On your phone</span><svg class="platform-icon" aria-hidden="true"><use href="./assets/icons.svg#android-logo"/></svg></div>
-          <img src="./assets/beamr-icon.svg" width="80" height="80" alt="" loading="lazy">
+          <img class="android-mark" src="./assets/beamr-icon.svg" width="72" height="72" alt="" loading="lazy">
           <h3>beamr for Android</h3>
           <p>Your phone is where the cast begins.</p>
           <span class="download-meta">Android 10 or later · ARM64</span>
-          <a class="button" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-android-arm64.apk">Download APK<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></a>
+          <a class="button button-wide" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-android-arm64.apk">Download APK<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></a>
           <p class="install-note">Open the APK on your phone. Android may ask you to allow installs from your browser.</p>
         </article>
         <div class="desktop-downloads">
           <h3 class="device-label">On your computer</h3>
-          <article class="download-row">
+          <article class="download-row" data-reveal>
             <svg class="platform-icon" aria-hidden="true"><use href="./assets/icons.svg#windows-logo"/></svg>
             <div class="download-copy"><h4>Windows</h4><p>64-bit installer</p><a class="alternative" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-receiver-windows-x64.zip">Portable ZIP<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a></div>
             <a class="download-button" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-receiver-windows-x64-setup.exe" aria-label="Download Windows installer"><span>Download</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></a>
           </article>
-          <article class="download-row">
+          <article class="download-row" data-reveal>
             <svg class="platform-icon" aria-hidden="true"><use href="./assets/icons.svg#apple-logo"/></svg>
             <div class="download-copy"><h4>macOS</h4><p>Apple silicon · DMG</p><a class="alternative" href="#macos-help">First-time setup<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down-right"/></svg></a></div>
             <a class="download-button" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-receiver-macos-arm64.dmg" aria-label="Download macOS disk image"><span>Download</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></a>
           </article>
-          <article class="download-row">
+          <article class="download-row" data-reveal>
             <svg class="platform-icon" aria-hidden="true"><use href="./assets/icons.svg#linux-logo"/></svg>
             <div class="download-copy"><h4>Linux</h4><p>x86_64 · AppImage</p><span class="row-note">Make executable, then open.</span></div>
             <a class="download-button" href="https://github.com/mjsolidarios/beamr/releases/latest/download/beamr-receiver-linux-x86_64.AppImage" aria-label="Download Linux AppImage"><span>Download</span><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></a>
           </article>
+          <div class="download-footer"><span>Downloads come directly from GitHub Releases.</span><a class="text-link" href="https://github.com/mjsolidarios/beamr/releases/latest">Release notes<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a></div>
         </div>
       </div>
-      <div class="download-footer"><span>Downloads come directly from GitHub Releases.</span><a class="text-link" href="https://github.com/mjsolidarios/beamr/releases/latest">Release notes<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a></div>
     </section>
 
-    <section class="section container faq" aria-labelledby="faq-title">
-      <div class="faq-heading"><h2 id="faq-title">A few things <br>to know.</h2><p>Need a hand with something else?</p><a class="text-link" href="https://github.com/mjsolidarios/beamr/issues">Ask on GitHub<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a></div>
+    <section class="faq container" id="faq" aria-labelledby="faq-title">
+      <div class="faq-heading">
+        <h2 id="faq-title">A few things to know.</h2>
+        <p>Need a hand with something else?</p>
+        <a class="text-link" href="https://github.com/mjsolidarios/beamr/issues">Ask on GitHub<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a>
+      </div>
       <div class="questions">
         <details><summary>Does my screen go through the cloud?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>No. beamr sends screen and audio data directly between your phone and computers on the same local network. You don’t need an account. Use a network you trust.</p></details>
         <details><summary>Why can’t my phone find my computer?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Check that both devices are on the same Wi-Fi and your firewall allows beamr. Guest networks may prevent devices from connecting to each other. You can also scan the QR code or enter the address shown on the computer.</p></details>
@@ -171,17 +246,20 @@
       </div>
     </section>
 
-    <section class="open-source container" aria-labelledby="source-title">
+    <section class="open-source container" aria-labelledby="source-title" data-reveal>
       <svg class="source-icon" aria-hidden="true"><use href="./assets/icons.svg#code"/></svg>
       <div><h2 id="source-title">Open source. Open possibilities.</h2><p>Read the code, report a bug, or help make beamr better.</p></div>
       <a class="button button-outline" href="https://github.com/mjsolidarios/beamr">View on GitHub<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-up-right"/></svg></a>
     </section>
   </main>
 
-  <footer class="site-footer container">
-    <div class="footer-brand"><a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="30" height="30" alt=""><span>beamr</span></a><p>A little less distance between your screens.</p></div>
-    <nav aria-label="Project links"><a href="https://github.com/mjsolidarios/beamr">GitHub</a><a href="https://github.com/mjsolidarios/beamr/issues">Issues</a><a href="https://github.com/mjsolidarios/beamr/releases">All releases</a><a href="https://github.com/mjsolidarios/beamr/blob/main/LICENSE">MIT license</a></nav>
-    <p class="footer-credit">Made by <a href="https://github.com/mjsolidarios">mjsolidarios</a>. Built with Qt.</p>
+  <footer class="footer container">
+    <p class="footer-line">A little less distance between your screens.</p>
+    <div class="footer-meta">
+      <a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="28" height="28" alt=""><span>beamr</span></a>
+      <nav aria-label="Project links"><a href="https://github.com/mjsolidarios/beamr">GitHub</a><a href="https://github.com/mjsolidarios/beamr/issues">Issues</a><a href="https://github.com/mjsolidarios/beamr/releases">All releases</a><a href="https://github.com/mjsolidarios/beamr/blob/main/LICENSE">MIT license</a></nav>
+      <p class="footer-credit">Made by <a href="https://github.com/mjsolidarios">mjsolidarios</a>. Built with Qt.</p>
+    </div>
   </footer>
 </body>
 </html>
