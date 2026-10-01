@@ -162,8 +162,8 @@ for details and where to get Qt's source.
 - [`third_party/qrcodegen`](third_party/qrcodegen): Project Nayuki's QR Code
   generator (MIT)
 - Icons from [Lucide](https://lucide.dev) (ISC)
-- The app icon's masters are in [`assets/icon`](assets/icon); `generate.py`
-  there makes every Android and desktop size from them
+- The app icon's editable SVG masters are in [`assets/icon`](assets/icon/README.md);
+  `generate.py` makes every Android, desktop, and tray variant from them
 
 ## License
 

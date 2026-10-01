@@ -125,7 +125,7 @@ qt_add_executable(beamr_receiver
 qt_add_resources(beamr_receiver "app_icon"
     PREFIX /beamr
     BASE platform
-    FILES platform/beamr.png platform/beamr-tray.svg
+    FILES platform/beamr.png platform/beamr.ico platform/beamr-tray.svg platform/beamr-tray-small.svg
 )
 if(WIN32)
     # The executable's icon in Explorer and the taskbar.

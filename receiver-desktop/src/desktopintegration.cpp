@@ -27,12 +27,14 @@ QIcon trayIcon()
 {
     const bool dark = QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Light;
     QSvgRenderer svg(QStringLiteral(":/beamr/beamr-tray.svg"));
+    QSvgRenderer smallSvg(QStringLiteral(":/beamr/beamr-tray-small.svg"));
     QIcon icon;
-    for (int size : {16, 22, 24, 32, 48, 64}) {
+    for (int size : {16, 20, 22, 24, 32, 40, 48, 64}) {
         QPixmap pixmap(size, size);
         pixmap.fill(Qt::transparent);
         QPainter painter(&pixmap);
-        svg.render(&painter);
+        // Keep the phone's opening and the gap between devices clear at 16 px.
+        (size <= 20 ? smallSvg : svg).render(&painter);
         painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
         painter.fillRect(pixmap.rect(), dark ? QColor(0xff, 0xff, 0xff) : QColor(0x1f, 0x23, 0x2b));
         painter.end();

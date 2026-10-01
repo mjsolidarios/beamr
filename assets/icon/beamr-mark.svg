@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <title>beamr — phone to screen</title>
+  <g fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="#3ec6e0" d="M7 7V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6"/>
+    <rect stroke="#f4f8fb" x="2" y="10" width="7" height="11" rx="1.75"/>
+  </g>
+</svg>
