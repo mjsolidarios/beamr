@@ -20,6 +20,7 @@ qt_add_qml_module(beamr_sender
         qml/CastCard.qml
         qml/HomePage.qml
         qml/Icon.qml
+        qml/LicensesPage.qml
         qml/Main.qml
         qml/MessageBanner.qml
         qml/OnboardingArt.qml
@@ -77,11 +78,31 @@ set_target_properties(beamr_sender PROPERTIES
     QT_ANDROID_PACKAGE_NAME io.github.mjsolidarios.beamr
     QT_ANDROID_APP_NAME beamr
     QT_ANDROID_MIN_SDK_VERSION 29
+    # Pinned so a Qt upgrade can't quietly lower the Play target.
+    QT_ANDROID_TARGET_SDK_VERSION 36
     QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
-    QT_ANDROID_VERSION_CODE 3
+    QT_ANDROID_VERSION_CODE 4
     # Manifest and Java sources for screen capture.
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )
+
+# Qt Core asks for shared storage, which beamr never uses. The manifest
+# merger is also told to drop it. Filtering here keeps it out of the
+# deployment JSON that androiddeployqt copies into the manifest.
+if(ANDROID)
+    get_target_property(_beamr_core_permissions Qt6::Core INTERFACE_QT_ANDROID_PERMISSIONS)
+    if(_beamr_core_permissions)
+        set(_beamr_kept_permissions "")
+        foreach(_beamr_permission IN LISTS _beamr_core_permissions)
+            if(_beamr_permission MATCHES "WRITE_EXTERNAL_STORAGE")
+                continue()
+            endif()
+            string(REPLACE ";" "\\;" _beamr_permission "${_beamr_permission}")
+            list(APPEND _beamr_kept_permissions "${_beamr_permission}")
+        endforeach()
+        set_property(TARGET Qt6::Core PROPERTY INTERFACE_QT_ANDROID_PERMISSIONS "${_beamr_kept_permissions}")
+    endif()
+endif()
 
 # Translations (see BEAMR_LANGUAGES in the top-level CMakeLists.txt).
 if(BEAMR_LANGUAGES)

@@ -13,6 +13,7 @@ Item {
 
     signal backRequested()
     signal introductionRequested()
+    signal licensesRequested()
 
     readonly property string repoUrl: "https://github.com/mjsolidarios/beamr"
 
@@ -264,7 +265,8 @@ Item {
                     glyph: "scale"
                     title: qsTr("Licenses")
                     subtitle: qsTr("beamr, Qt and the other open-source parts")
-                    onClicked: Qt.openUrlExternally(root.repoUrl + "/blob/main/THIRD_PARTY_NOTICES.md")
+                    external: false
+                    onClicked: root.licensesRequested()
                 }
             }
 

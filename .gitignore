@@ -6,3 +6,6 @@ CMakeLists.txt.user*
 .qtcreator/
 # Design research: third-party app screenshots, not ours to redistribute.
 research/
+# Android signing keys.
+*.jks
+*.keystore

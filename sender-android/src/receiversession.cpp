@@ -7,6 +7,7 @@
 #include <beamr/config.h>
 #include <beamr/log.h>
 #include <beamr/protocol.h>
+#include <beamr/tlsidentity.h>
 
 namespace protocol = beamr::protocol;
 
@@ -26,7 +27,7 @@ constexpr int kResumeAnswerMs = 3'000;
 
 ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QString &endpoint,
                                  const beamr::DeviceInfo &device, const QString &screen, const QString &pair,
-                                 QObject *parent)
+                                 const QByteArray &fingerprint, QObject *parent)
     : QObject(parent)
     , m_id(QUuid::createUuid().toString(QUuid::WithoutBraces))
     , m_host(host)
@@ -35,6 +36,7 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
     , m_device(device)
     , m_screen(screen)
     , m_pair(pair)
+    , m_fingerprint(fingerprint)
     , m_name(endpoint)
 {
     m_timeout.setSingleShot(true);
@@ -48,7 +50,7 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
         } else if (m_state == AwaitingApproval) {
             end(tr("“%1” didn't answer. Try again.").arg(m_name), true);
         } else if (m_state == Reconnecting) {
-            if (m_socket.state() == QAbstractSocket::ConnectedState) {
+            if (m_socket.isEncrypted()) {
                 // It said hello but didn't take us back (it let go of our
                 // screen); it's asking the person at the computer instead.
                 setState(AwaitingApproval);
@@ -64,17 +66,27 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
     m_retryTimer.setSingleShot(true);
     connect(&m_retryTimer, &QTimer::timeout, this, &ReceiverSession::retry);
 
-    connect(&m_socket, &QTcpSocket::connected, this, &ReceiverSession::onConnected);
-    connect(&m_socket, &QTcpSocket::readyRead, this, &ReceiverSession::onReadyRead);
-    connect(&m_socket, &QTcpSocket::errorOccurred, this, &ReceiverSession::onSocketError);
-    connect(&m_socket, &QTcpSocket::disconnected, this, &ReceiverSession::onDisconnected);
+    // connected() fires before the handshake. Hello waits for encrypted().
+    connect(&m_socket, &QSslSocket::encrypted, this, &ReceiverSession::onEncrypted);
+    connect(&m_socket, &QSslSocket::sslErrors, &m_socket,
+            [this](const QList<QSslError> &) { m_socket.ignoreSslErrors(); }, Qt::DirectConnection);
+    connect(&m_socket, &QSslSocket::readyRead, this, &ReceiverSession::onReadyRead);
+    connect(&m_socket, &QSslSocket::errorOccurred, this, &ReceiverSession::onSocketError);
+    connect(&m_socket, &QSslSocket::disconnected, this, &ReceiverSession::onDisconnected);
 }
 
 void ReceiverSession::start()
 {
     qCInfo(lcNet) << "connecting to" << m_host << m_port;
     m_timeout.start(kConnectTimeoutMs);
-    m_socket.connectToHost(m_host, m_port);
+    connectEncrypted();
+}
+
+void ReceiverSession::connectEncrypted()
+{
+    m_socket.setSslConfiguration(beamr::TlsIdentity::clientConfiguration());
+    m_socket.setPeerVerifyMode(QSslSocket::VerifyNone);
+    m_socket.connectToHostEncrypted(m_host, m_port);
 }
 
 void ReceiverSession::close()
@@ -82,7 +94,7 @@ void ReceiverSession::close()
     m_ended = true;
     m_timeout.stop();
     m_retryTimer.stop();
-    if (m_socket.state() == QAbstractSocket::ConnectedState) {
+    if (m_socket.isEncrypted()) {
         m_socket.write(protocol::encode({{"type", protocol::kBye}}));
         // This session is deleted right after, which would drop the unsent
         // bye; without it the receiver would hold our screen for a comeback.
@@ -122,7 +134,22 @@ void ReceiverSession::end(const QString &message, bool isError)
     emit ended(message, isError);
 }
 
-void ReceiverSession::onConnected()
+void ReceiverSession::onEncrypted()
+{
+    if (m_ended)
+        return;
+    QByteArray seen;
+    if (!beamr::TlsIdentity::pinPeer(&m_socket, m_fingerprint, &seen)) {
+        end(tr("The security key for %1 doesn't match. Scan the QR code on the computer again.").arg(m_endpoint),
+            true);
+        return;
+    }
+    if (m_fingerprint.isEmpty())
+        m_fingerprint = seen;
+    sendHello();
+}
+
+void ReceiverSession::sendHello()
 {
     // Waiting for the welcome still counts as connecting: a non-beamr service
     // on this port accepts the TCP connection but never answers.
@@ -214,6 +241,11 @@ void ReceiverSession::onSocketError(QAbstractSocket::SocketError error)
         return;
 
     switch (error) {
+    case QAbstractSocket::SslHandshakeFailedError:
+        end(tr("Couldn't start a secure connection to %1. Update beamr on the computer, then try again.")
+                .arg(m_endpoint),
+            true);
+        break;
     case QAbstractSocket::ConnectionRefusedError:
         end(tr("Nothing answered at %1. Make sure beamr is open on the computer and the address is right.")
                 .arg(m_endpoint),
@@ -243,7 +275,11 @@ void ReceiverSession::onDisconnected()
     }
     if (beginReconnect())
         return;
-    if (m_state == Connecting)
+    if (m_state == Connecting && !m_socket.isEncrypted())
+        end(tr("Couldn't start a secure connection to %1. Update beamr on the computer, then try again.")
+                .arg(m_endpoint),
+            true);
+    else if (m_state == Connecting)
         end(tr("%1 closed the connection. Is it a beamr receiver?").arg(m_endpoint), true);
     else
         end(tr("Lost the connection to “%1”.").arg(m_name), true);
@@ -271,5 +307,5 @@ void ReceiverSession::retry()
     }
     m_socket.abort();
     m_timeout.start(kReconnectAttemptMs);
-    m_socket.connectToHost(m_host, m_port);
+    connectEncrypted();
 }

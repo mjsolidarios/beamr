@@ -22,6 +22,7 @@
 #include <beamr/connectlink.h>
 #include <beamr/log.h>
 #include <beamr/protocol.h>
+#include <beamr/tlsidentity.h>
 
 #include "discoveryclient.h"
 #include "receiversession.h"
@@ -374,17 +375,27 @@ void SenderController::setDiscovering(bool discovering)
     emit discoveringChanged();
 }
 
-void SenderController::addReceiver(const QString &address, const QString &screen, const QString &pair)
+void SenderController::addReceiver(const QString &address, const QString &screen, const QString &pair,
+                                   const QString &key)
 {
     if (const QString error = validateAddress(address); !error.isEmpty()) {
         setMessage(error, true);
         return;
     }
+    QByteArray fingerprint;
+    if (!key.isEmpty()) {
+        fingerprint = beamr::TlsIdentity::fingerprintFromText(key);
+        if (fingerprint.isEmpty()) {
+            setMessage(tr("That QR code is missing a valid security key. Scan the code in the beamr window again."),
+                       true);
+            return;
+        }
+    }
     clearMessage();
 
     const Endpoint endpoint = parseEndpoint(address);
     auto *session = new ReceiverSession(endpoint.host, endpoint.port, displayEndpoint(endpoint), m_device, screen,
-                                        pair, this);
+                                        pair, fingerprint, this);
     connect(session, &ReceiverSession::welcomed, this, [this, session] { rememberReceiver(session); });
     connect(session, &ReceiverSession::approved, this, [this, session] { onSessionApproved(session); });
     connect(session, &ReceiverSession::keyFrameRequested, this, [this] {
@@ -452,8 +463,9 @@ void SenderController::openVideo(ReceiverSession *session)
 {
     QMetaObject::invokeMethod(m_stream, [stream = m_stream, id = session->id(), host = session->host(),
                                          port = session->port(), token = session->streamToken(),
-                                         audio = session->playsAudio()] {
-        stream->open(id, host, port, token, audio);
+                                         audio = session->playsAudio(),
+                                         fingerprint = session->peerFingerprint()] {
+        stream->open(id, host, port, token, audio, fingerprint);
     });
 }
 
@@ -631,6 +643,12 @@ void SenderController::qrScanned(const QString &text)
     const beamr::ConnectLink link = beamr::ConnectLink::parse(text);
     QString address;
     if (link.isValid()) {
+        if (beamr::TlsIdentity::fingerprintFromText(link.key).isEmpty()) {
+            setMessage(tr("That QR code is missing a valid security key. Scan the code in the beamr window again."),
+                       true);
+            haptic(false);
+            return;
+        }
         address = displayEndpoint({reachableHost(link.hosts), link.port, {}});
     } else if (!text.contains(u'/') && parseEndpoint(text).error.isEmpty()) {
         // A plain address works too.
@@ -645,7 +663,7 @@ void SenderController::qrScanned(const QString &text)
         haptic(false);
         return;
     }
-    addReceiver(address, link.screen, link.pair);
+    addReceiver(address, link.screen, link.pair, link.key);
 }
 
 void SenderController::qrScanFailed(const QString &reason)

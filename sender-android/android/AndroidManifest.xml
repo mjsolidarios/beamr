@@ -3,11 +3,14 @@
      casting needs: the consent activity, the capture service and their
      permissions. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="io.github.mjsolidarios.beamr"
     android:installLocation="auto"
     android:versionCode="-- %%INSERT_VERSION_CODE%% --"
     android:versionName="-- %%INSERT_VERSION_NAME%% --">
     <!-- %%INSERT_PERMISSIONS -->
+    <!-- Qt's module manifests add this. beamr never writes shared storage. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
     <!-- %%INSERT_FEATURES -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />

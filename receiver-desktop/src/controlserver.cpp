@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QPointer>
+#include <QSslSocket>
 #include <QTcpSocket>
 #include <QTimer>
 #include <QUuid>
@@ -47,11 +48,19 @@ void send(QTcpSocket *socket, const QJsonObject &message)
 
 } // namespace
 
-ControlServer::ControlServer(ReceiverController *controller)
+ControlServer::ControlServer(ReceiverController *controller, const beamr::TlsIdentity &identity)
     : QObject(controller)
     , m_controller(controller)
+    , m_identity(identity)
 {
-    connect(&m_server, &QTcpServer::newConnection, this, &ControlServer::onNewConnection);
+    // newConnection fires when TCP is accepted, before the handshake, and
+    // nextPendingConnection() is empty then. QSslServer queues the socket
+    // only once it has encrypted.
+    connect(&m_server, &QTcpServer::pendingConnectionAvailable, this, &ControlServer::onNewConnection);
+    // The certificate is self-signed. Phones pin it; this side doesn't check clients.
+    connect(&m_server, &QSslServer::sslErrors, this,
+            [](QSslSocket *socket, const QList<QSslError> &) { socket->ignoreSslErrors(); },
+            Qt::DirectConnection);
 
     connect(controller, &ReceiverController::requestAnswered, this, [this](const QString &requestId, bool accepted) {
         answer(requestId, accepted, protocol::kReasonDeclined);
@@ -70,8 +79,19 @@ ControlServer::ControlServer(ReceiverController *controller)
 
 bool ControlServer::listen(quint16 port)
 {
-    if (!m_server.listen(QHostAddress::Any, port))
+    // No certificate means no listener. Falling back to plain TCP would put
+    // the stream back where anyone on the Wi-Fi can watch it.
+    if (!m_identity.isValid()) {
+        m_error = tr("a secure connection couldn't be set up");
+        qCWarning(lcNet) << "not listening: no TLS certificate";
         return false;
+    }
+    m_server.setSslConfiguration(m_identity.serverConfiguration());
+    m_server.setHandshakeTimeout(protocol::kHelloTimeoutMs);
+    if (!m_server.listen(QHostAddress::Any, port)) {
+        m_error = m_server.errorString();
+        return false;
+    }
     qCInfo(lcNet) << "control server listening on port" << port;
     return true;
 }
@@ -79,6 +99,13 @@ bool ControlServer::listen(quint16 port)
 void ControlServer::onNewConnection()
 {
     while (QTcpSocket *socket = m_server.nextPendingConnection()) {
+        // A socket that never encrypted must not carry the stream.
+        if (auto *ssl = qobject_cast<QSslSocket *>(socket); !ssl || !ssl->isEncrypted()) {
+            qCWarning(lcNet) << "dropping a connection that never encrypted";
+            socket->abort();
+            socket->deleteLater();
+            continue;
+        }
         socket->setParent(this);
         qCInfo(lcNet) << "sender connected from" << displayAddress(socket->peerAddress());
 

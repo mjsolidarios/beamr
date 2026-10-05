@@ -20,6 +20,8 @@ QString ConnectLink::toString() const
         query.addQueryItem(QStringLiteral("screen"), screen);
     if (!pair.isEmpty())
         query.addQueryItem(QStringLiteral("pair"), pair);
+    if (!key.isEmpty())
+        query.addQueryItem(QStringLiteral("key"), key);
     for (const QString &host : hosts)
         query.addQueryItem(QStringLiteral("host"), host);
 
@@ -41,6 +43,7 @@ ConnectLink ConnectLink::parse(const QString &text)
     link.name = query.queryItemValue(QStringLiteral("name"), QUrl::FullyDecoded);
     link.screen = query.queryItemValue(QStringLiteral("screen"), QUrl::FullyDecoded).left(32);
     link.pair = query.queryItemValue(QStringLiteral("pair"), QUrl::FullyDecoded).left(64);
+    link.key = query.queryItemValue(QStringLiteral("key"), QUrl::FullyDecoded).left(128);
     link.hosts = query.allQueryItemValues(QStringLiteral("host"), QUrl::FullyDecoded);
     link.hosts.removeAll(QString());
     bool ok = false;

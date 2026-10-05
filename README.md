@@ -52,14 +52,18 @@ still connect, and it can start when you sign in (both in Settings).
 The QR code carries a link like:
 
 ```
-beamr://connect?name=Office%20PC&port=47700&screen=k3f9x2&pair=…&host=192.168.1.20&host=10.0.0.5
+beamr://connect?name=Office%20PC&port=47700&screen=k3f9x2&pair=…&key=…&host=192.168.1.20&host=10.0.0.5
 ```
 
 The phone picks the host on its own network, `screen` sends the cast to the
 screen whose code was scanned, and `pair` is a one-time code that skips the
-approval prompt. See [`common/include/beamr/protocol.h`](common/include/beamr/protocol.h)
-for the control protocol (newline-delimited JSON over TCP), discovery, and the
-media stream framing.
+approval prompt. `key` is the fingerprint of the computer's TLS certificate.
+The computer keeps the private key. Control messages and video travel as TLS
+over TCP, and a scanned code checks the computer against that fingerprint. A
+computer found on the network, or typed in, is encrypted the same way and the
+phone then requires that same certificate for the video. See
+[`common/include/beamr/protocol.h`](common/include/beamr/protocol.h) for the
+messages, discovery, and the media stream framing.
 
 ## Downloads
 
@@ -83,7 +87,7 @@ Requirements:
   decodes H.264 on the receiver) and **Qt Svg**
 - CMake 3.21+ and Ninja
 - For the phone app: Android SDK and NDK, JDK 17, and a Qt for Android kit.
-  It targets Android 10 (API 29) or later.
+  It targets Android 10 (API 29) or later, with target SDK 36.
 
 Android kits build the sender and desktop kits build the receiver, so opening
 the top-level `CMakeLists.txt` in Qt Creator works for both.
@@ -156,7 +160,7 @@ beamr is built with [Qt 6](https://www.qt.io) and developed in
 [Qt Creator](https://www.qt.io/product/development-tools). Qt is used under
 its open-source license, the **GNU LGPL v3**. Qt is linked dynamically and
 unmodified, both apps say so in their Settings, and the license texts are in
-[licenses/](licenses). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+[licenses/](licenses) and inside each app. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 for details and where to get Qt's source.
 
 ## Third-party code
@@ -165,6 +169,8 @@ for details and where to get Qt's source.
   FFmpeg that ships with Qt Multimedia (LGPL 2.1)
 - [`third_party/qrcodegen`](third_party/qrcodegen): Project Nayuki's QR Code
   generator (MIT)
+- [`third_party/micro-ecc`](third_party/micro-ecc): Kenneth MacKay's micro-ecc
+  (BSD 2-clause), used to build the receiver's TLS certificate
 - Icons from [Lucide](https://lucide.dev) (ISC)
 - The app icon's editable SVG masters are in [`assets/icon`](assets/icon/README.md);
   `generate.py` makes every Android, desktop, and tray variant from them

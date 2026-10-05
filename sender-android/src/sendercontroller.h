@@ -7,6 +7,7 @@
 #include <QtQml/qqmlregistration.h>
 
 #include <beamr/device.h>
+#include <beamr/notices.h>
 
 #include "sessionmodel.h"
 
@@ -120,8 +121,14 @@ public:
     // Empty when `address` can be added, otherwise what's wrong with it.
     Q_INVOKABLE QString validateAddress(const QString &address) const;
     // `screen` and `pair` come from a receiver's QR code: which of its
-    // screens, and the one-time code that skips asking.
-    Q_INVOKABLE void addReceiver(const QString &address, const QString &screen = {}, const QString &pair = {});
+    // screens, and the one-time code that skips asking. `key` is the
+    // certificate fingerprint from that code; empty pins the first
+    // certificate the connection sees.
+    Q_INVOKABLE void addReceiver(const QString &address, const QString &screen = {}, const QString &pair = {},
+                                 const QString &key = {});
+    Q_INVOKABLE QString openSourceNotices() const { return beamr::notices::text(); }
+    Q_INVOKABLE QVariantList openSourceLicenses() const { return beamr::notices::licenses(); }
+    Q_INVOKABLE QString openSourceLicense(const QString &id) const { return beamr::notices::license(id); }
     Q_INVOKABLE void removeReceiver(const QString &sessionId);
     Q_INVOKABLE void disconnectAll();
     Q_INVOKABLE bool isConnectedTo(const QString &address) const;

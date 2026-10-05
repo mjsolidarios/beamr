@@ -17,6 +17,7 @@ Dialog {
     topPadding: 8
 
     onAboutToShow: nameField.text = ReceiverController.receiverName
+    onClosed: licensesDialog.close()
 
     header: Label {
         text: root.title
@@ -384,14 +385,18 @@ Dialog {
                                + "and developed in Qt Creator. Qt's source is at "
                                + "<a href=\"https://code.qt.io\">code.qt.io</a>. Video and sound decoding "
                                + "use FFmpeg (LGPL v2.1). "
-                               + "<a href=\"https://github.com/mjsolidarios/beamr/blob/main/THIRD_PARTY_NOTICES.md\">"
-                               + "All licenses</a>").arg(ReceiverController.qtVersion)
+                               + "<a href=\"beamr://licenses\">All licenses</a>").arg(ReceiverController.qtVersion)
                     textFormat: Text.StyledText
                     linkColor: Theme.accent
                     color: Theme.textMuted
                     font.pixelSize: 13
                     wrapMode: Text.Wrap
-                    onLinkActivated: link => Qt.openUrlExternally(link)
+                    onLinkActivated: link => {
+                        if (link === "beamr://licenses")
+                            licensesDialog.open()
+                        else
+                            Qt.openUrlExternally(link)
+                    }
 
                     HoverHandler {
                         cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -399,6 +404,12 @@ Dialog {
                 }
             }
         }
+    }
+
+    LicensesDialog {
+        id: licensesDialog
+
+        parent: Overlay.overlay
     }
 
     footer: DialogButtonBox {

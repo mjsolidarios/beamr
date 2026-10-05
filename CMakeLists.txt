@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(beamr
-    VERSION 0.2.1
+    VERSION 0.2.2
     DESCRIPTION "Low-latency Wi-Fi screen casting"
     LANGUAGES CXX)
 
@@ -54,6 +54,12 @@ add_subdirectory(common)
 
 if(BEAMR_BUILD_RECEIVER)
     add_subdirectory(receiver-desktop)
+
+    # Console test (not qt_add_executable, which marks Windows apps as GUI).
+    add_executable(beamr_tls_roundtrip tests/tls_roundtrip.cpp)
+    target_link_libraries(beamr_tls_roundtrip PRIVATE beamr_common Qt6::Network)
+    enable_testing()
+    add_test(NAME tls_roundtrip COMMAND beamr_tls_roundtrip)
 endif()
 
 if(BEAMR_BUILD_SENDER)

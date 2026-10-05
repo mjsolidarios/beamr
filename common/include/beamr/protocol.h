@@ -8,7 +8,16 @@
 class QIODevice;
 
 // Control channel between sender and receiver: newline-delimited JSON
-// objects over TCP on kDefaultControlPort.
+// objects over TLS on kDefaultControlPort. The messages are unchanged, so
+// kVersion stays 1. A peer that still speaks plain TCP fails the handshake,
+// and the phone asks for beamr on the computer to be updated.
+//
+// The receiver's QR code carries the SHA-256 fingerprint of its certificate
+// (`key` in the connect link). The phone checks it before sending hello, and
+// again on the media connection. A receiver found by discovery, or typed in,
+// has no fingerprint yet: the phone still uses TLS and pins the certificate
+// it sees, so the media connection has to present the same one. Discovery
+// stays a UDP broadcast and carries no fingerprint.
 //
 //   sender   -> receiver  {"type":"hello","version":1,"deviceId":..,"name":..,"model":..,
 //                          "screen":..,"pair":..,"resume":..}
@@ -27,14 +36,15 @@ class QIODevice;
 // Discovery: the phone broadcasts {"type":"discover","version":1} to UDP
 // port kDiscoveryPort; each receiver replies to the sender with
 // {"type":"receiver","version":1,"name":..,"port":..,"freeScreens":n}. The
-// reply's source address is the receiver's address. Replies never carry
-// pairing codes: being on the network doesn't skip approval.
+// reply's source address is the receiver's address. Replies carry no
+// pairing code and no certificate fingerprint: being on the network
+// doesn't skip approval or authenticate the computer.
 //
 // A rejected answer carries a reason ("declined", "expired" or
 // "unsupported") and the receiver closes the connection after it. An
 // accepted one carries a token for the media stream.
 //
-// Media stream: a second TCP connection to the same port. The sender opens
+// Media stream: a second TLS connection to the same port. The sender opens
 // it with one line, {"type":"stream","token":..,"codec":"h264","audio":"opus"},
 // then sends frames, each a FrameHeader followed by `size` bytes: Annex B
 // H.264, or with kFrameAudio set, one Opus packet (48 kHz stereo). Closing

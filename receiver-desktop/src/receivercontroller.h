@@ -10,6 +10,8 @@
 #include <QtQml/qqmlregistration.h>
 
 #include <beamr/device.h>
+#include <beamr/notices.h>
+#include <beamr/tlsidentity.h>
 
 #include "castscreen.h"
 #include "connectionrequestmodel.h"
@@ -121,6 +123,9 @@ public:
     Q_INVOKABLE void trashRecording(int row);
     Q_INVOKABLE void forgetDevice(const QString &deviceId);
     Q_INVOKABLE void simulateRequest();
+    Q_INVOKABLE QString openSourceNotices() const { return beamr::notices::text(); }
+    Q_INVOKABLE QVariantList openSourceLicenses() const { return beamr::notices::licenses(); }
+    Q_INVOKABLE QString openSourceLicense(const QString &id) const { return beamr::notices::license(id); }
 
 signals:
     void stateChanged();
@@ -175,6 +180,7 @@ private:
     int m_colorScheme = 0;
     QMediaDevices *m_mediaDevices = nullptr;
     QString m_receiverName;
+    beamr::TlsIdentity m_identity;
     QStringList m_addresses;
     bool m_requireApproval = true;
     QList<TrustedDevice> m_trusted;

@@ -4,15 +4,16 @@
 #include <QHash>
 #include <QObject>
 
-class QTcpSocket;
+class QSslSocket;
 
 // Sends every encoded frame to each receiver's video connection. Lives on
 // its own thread so frames never wait behind the UI.
 //
-// TCP never drops data, so on a slow network frames would queue up and the
-// picture would fall further and further behind. Instead, once too much is
-// queued for a receiver we skip that receiver's frames until the next
-// keyframe, which we ask the encoder for. Other receivers carry on.
+// The TLS connection never drops data, so on a slow network frames would
+// queue up and the picture would fall further and further behind. Instead,
+// once too much is queued for a receiver we skip that receiver's frames
+// until the next keyframe, which we ask the encoder for. Other receivers
+// carry on.
 class StreamSender : public QObject
 {
     Q_OBJECT
@@ -22,7 +23,9 @@ public:
 
     // All of these must be called on the sender's thread (queue them).
     // `audio`: the receiver plays sound, so send it along.
-    void open(const QString &sessionId, const QString &host, quint16 port, const QString &token, bool audio);
+    // `fingerprint`: the certificate pinned on the control connection.
+    void open(const QString &sessionId, const QString &host, quint16 port, const QString &token, bool audio,
+              const QByteArray &fingerprint);
     void close(const QString &sessionId);
     void closeAll();
     void sendFrame(const QByteArray &data, quint8 flags, qint64 ptsUs);
@@ -38,7 +41,8 @@ signals:
 private:
     struct Destination
     {
-        QTcpSocket *socket = nullptr;
+        QSslSocket *socket = nullptr;
+        bool ready = false;
         bool audio = false;
         bool waitForKeyFrame = true;
         qint64 sentFrames = 0;
@@ -48,6 +52,7 @@ private:
 
     // Tears a connection down quietly; false if there was none.
     bool drop(const QString &sessionId);
+    void fail(const QString &sessionId, QSslSocket *socket, const QString &error);
     void send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags);
 
     QHash<QString, Destination> m_destinations;

@@ -92,3 +92,22 @@ android {
         ndk.abiFilters = qtTargetAbiList.split(",")
     }
 }
+
+// androiddeployqt inserts WRITE_EXTERNAL_STORAGE from Qt's module manifests.
+// A normal declaration next to tools:node="remove" does not remove it, so
+// drop the inserted line before the manifest merger runs and keep the
+// tools:node line.
+tasks.configureEach { task ->
+    if (task.name == "preBuild") {
+        task.doFirst {
+            def manifest = file("AndroidManifest.xml")
+            if (!manifest.exists())
+                return
+            def original = manifest.getText("UTF-8")
+            def pattern = '''(?m)^[ \\t]*<uses-permission\\b[^>]*android:name\\s*=\\s*["']android\\.permission\\.WRITE_EXTERNAL_STORAGE["'](?![^>]*\\btools:node)[^>]*/>[ \\t]*\\r?\\n?'''
+            def stripped = original.replaceAll(pattern, "")
+            if (stripped != original)
+                manifest.write(stripped, "UTF-8")
+        }
+    }
+}

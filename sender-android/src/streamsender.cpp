@@ -1,7 +1,9 @@
 #include "streamsender.h"
 
 #include <QJsonObject>
-#include <QTcpSocket>
+#include <QSslSocket>
+
+#include <beamr/tlsidentity.h>
 
 #ifdef Q_OS_ANDROID
 #include <QJniObject>
@@ -27,17 +29,31 @@ StreamSender::StreamSender(QObject *parent)
 }
 
 void StreamSender::open(const QString &sessionId, const QString &host, quint16 port, const QString &token,
-                        bool audio)
+                        bool audio, const QByteArray &fingerprint)
 {
     drop(sessionId);
 
-    auto *socket = new QTcpSocket(this);
+    auto *socket = new QSslSocket(this);
+    socket->setSslConfiguration(beamr::TlsIdentity::clientConfiguration());
+    socket->setPeerVerifyMode(QSslSocket::VerifyNone);
     Destination destination;
     destination.socket = socket;
     destination.audio = audio;
     m_destinations.insert(sessionId, destination);
 
-    connect(socket, &QTcpSocket::connected, this, [this, socket, sessionId, token, audio] {
+    connect(socket, &QSslSocket::sslErrors, socket,
+            [socket](const QList<QSslError> &) { socket->ignoreSslErrors(); }, Qt::DirectConnection);
+    // connected() is true before the handshake. Frames wait until the pin matches.
+    connect(socket, &QSslSocket::encrypted, this, [this, socket, sessionId, token, audio, fingerprint] {
+        auto it = m_destinations.find(sessionId);
+        if (it == m_destinations.end() || it->socket != socket)
+            return;
+        QByteArray seen;
+        if (!beamr::TlsIdentity::pinPeer(socket, fingerprint, &seen)) {
+            fail(sessionId, socket, tr("The computer's security key changed. Scan its QR code again."));
+            return;
+        }
+        it->ready = true;
         socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
         QJsonObject stream{
             {"type", protocol::kStream},
@@ -52,17 +68,35 @@ void StreamSender::open(const QString &sessionId, const QString &host, quint16 p
         requestKeyFrame();
         emit opened(sessionId);
     });
-    connect(socket, &QTcpSocket::errorOccurred, this, [this, socket, sessionId] {
-        const QString error = socket->error() == QAbstractSocket::RemoteHostClosedError
-                                  ? tr("the computer closed it")
-                                  : socket->errorString();
-        qCWarning(lcNet) << "video to" << socket->peerName() << "failed:" << error;
-        m_destinations.remove(sessionId);
-        socket->disconnect(this);
-        socket->deleteLater();
-        emit closed(sessionId, error);
+    connect(socket, &QSslSocket::errorOccurred, this, [this, socket, sessionId](QAbstractSocket::SocketError error) {
+        const auto it = m_destinations.constFind(sessionId);
+        if (it == m_destinations.cend() || it->socket != socket)
+            return;
+        const bool duringHandshake = !it->ready;
+        QString message;
+        if (duringHandshake
+            && (error == QAbstractSocket::SslHandshakeFailedError || error == QAbstractSocket::RemoteHostClosedError))
+            message = tr("Couldn't open a secure video connection.");
+        else if (error == QAbstractSocket::RemoteHostClosedError)
+            message = tr("the computer closed it");
+        else
+            message = socket->errorString();
+        qCWarning(lcNet) << "video to" << socket->peerName() << "failed:" << message;
+        fail(sessionId, socket, message);
     });
-    socket->connectToHost(host, port);
+    socket->connectToHostEncrypted(host, port);
+}
+
+void StreamSender::fail(const QString &sessionId, QSslSocket *socket, const QString &error)
+{
+    const auto it = m_destinations.find(sessionId);
+    if (it == m_destinations.end() || it->socket != socket)
+        return;
+    m_destinations.erase(it);
+    socket->disconnect(this);
+    socket->abort();
+    socket->deleteLater();
+    emit closed(sessionId, error);
 }
 
 void StreamSender::close(const QString &sessionId)
@@ -119,8 +153,8 @@ void StreamSender::sendAudio(const QByteArray &data, qint64 ptsUs)
     const QByteArray headerBytes = header.encode();
 
     for (Destination &destination : m_destinations) {
-        QTcpSocket *socket = destination.socket;
-        if (!destination.audio || socket->state() != QAbstractSocket::ConnectedState)
+        QSslSocket *socket = destination.socket;
+        if (!destination.audio || !destination.ready || !socket->isEncrypted())
             continue;
         // A backed-up connection gets video's catch-up; a skipped 20 ms of
         // sound is a click, late sound is worse.
@@ -135,8 +169,8 @@ void StreamSender::sendAudio(const QByteArray &data, qint64 ptsUs)
 
 void StreamSender::send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags)
 {
-    QTcpSocket *socket = destination.socket;
-    if (socket->state() != QAbstractSocket::ConnectedState)
+    QSslSocket *socket = destination.socket;
+    if (!destination.ready || !socket->isEncrypted())
         return;
 
     const bool isConfig = flags & protocol::kFrameConfig;

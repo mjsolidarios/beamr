@@ -7,15 +7,10 @@ namespace beamr {
 inline constexpr char kAppName[] = "beamr";
 inline constexpr char kVersion[] = BEAMR_VERSION;
 
-// Network. Media (SRT, UDP) and control (TCP) share a port number; the
-// protocols don't collide. Discovery uses its own UDP port.
-inline constexpr std::uint16_t kDefaultMediaPort = 47700;
+// Control messages and the media stream share this TCP port. Both use TLS.
+// Discovery is a UDP broadcast on its own port.
 inline constexpr std::uint16_t kDefaultControlPort = 47700;
 inline constexpr std::uint16_t kDiscoveryPort = 47701;
-
-// SRT receive latency. 80 ms leaves room for Wi-Fi retransmits while keeping
-// glass-to-glass under ~150 ms; raise it on congested networks.
-inline constexpr int kDefaultSrtLatencyMs = 80;
 
 // Video defaults for the sender's encoder.
 inline constexpr int kDefaultWidth = 1920;

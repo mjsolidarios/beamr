@@ -2,14 +2,14 @@
 
 #include <QElapsedTimer>
 #include <QObject>
-#include <QTcpSocket>
+#include <QSslSocket>
 #include <QTimer>
 
 #include <beamr/device.h>
 
-// The control connection to one receiver: says hello, waits for the person
-// at that computer to allow it, and hands out the token for its video. The
-// phone keeps one of these per receiver it casts to.
+// The control connection to one receiver: says hello over TLS, waits for the
+// person at that computer to allow it, and hands out the token for its video.
+// The phone keeps one of these per receiver it casts to.
 class ReceiverSession : public QObject
 {
     Q_OBJECT
@@ -22,8 +22,11 @@ public:
 
     // `screen` is the receiver screen to cast to and `pair` its one-time
     // code, both from its QR code; empty lets the receiver pick and ask.
+    // `fingerprint` is that code's certificate fingerprint. Empty pins the
+    // certificate this connection sees and requires it again for the video.
     ReceiverSession(const QString &host, quint16 port, const QString &endpoint, const beamr::DeviceInfo &device,
-                    const QString &screen, const QString &pair, QObject *parent = nullptr);
+                    const QString &screen, const QString &pair, const QByteArray &fingerprint,
+                    QObject *parent = nullptr);
 
     QString id() const { return m_id; }
     QString host() const { return m_host; }
@@ -33,6 +36,9 @@ public:
     // The receiver's own name once it has said hello, the endpoint before.
     QString name() const { return m_name; }
     QString streamToken() const { return m_streamToken; }
+    // Certificate pinned for this receiver, empty until the handshake when
+    // the QR code didn't carry one.
+    QByteArray peerFingerprint() const { return m_fingerprint; }
     // The receiver said it plays our sound (Opus).
     bool playsAudio() const { return m_playsAudio; }
     State state() const { return m_state; }
@@ -56,7 +62,9 @@ signals:
 private:
     void setState(State state);
     void end(const QString &message, bool isError);
-    void onConnected();
+    void connectEncrypted();
+    void onEncrypted();
+    void sendHello();
     void onReadyRead();
     void onSocketError(QAbstractSocket::SocketError error);
     void onDisconnected();
@@ -72,13 +80,14 @@ private:
     const beamr::DeviceInfo m_device;
     const QString m_screen;
     const QString m_pair;
+    QByteArray m_fingerprint;
     QString m_name;
     QString m_streamToken;
     QString m_resume;
     bool m_playsAudio = false;
     State m_state = Connecting;
     bool m_ended = false;
-    QTcpSocket m_socket;
+    QSslSocket m_socket;
     QTimer m_timeout;
     QTimer m_retryTimer;
     QElapsedTimer m_sinceDrop;

@@ -63,6 +63,7 @@ qt_add_qml_module(beamr_receiver_ui
         qml/Icon.qml
         qml/IconButton.qml
         qml/IdleView.qml
+        qml/LicensesDialog.qml
         qml/Main.qml
         qml/PillButton.qml
         qml/RecordingBadge.qml

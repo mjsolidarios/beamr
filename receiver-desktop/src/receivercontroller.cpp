@@ -19,6 +19,7 @@
 #include <beamr/config.h>
 #include <beamr/connectlink.h>
 #include <beamr/log.h>
+#include <beamr/tlsidentity.h>
 
 #include "controlserver.h"
 #include "discoveryresponder.h"
@@ -111,6 +112,10 @@ ReceiverController::ReceiverController(QObject *parent)
 
     connect(&m_ticker, &QTimer::timeout, this, &ReceiverController::tick);
     m_ticker.start(1000);
+
+    // Before the first screen, so its QR code already carries the fingerprint.
+    m_identity = beamr::TlsIdentity::loadOrCreate(
+        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
     appendScreen();
     refreshAddresses();
 
@@ -119,8 +124,13 @@ ReceiverController::ReceiverController(QObject *parent)
         qCWarning(lcNet) << "can't answer discovery on UDP port" << beamr::kDiscoveryPort
                          << "; phones will need the QR code or the address";
 
-    auto *server = new ControlServer(this);
-    if (!server->listen(controlPort())) {
+    auto *server = new ControlServer(this, m_identity);
+    if (!m_identity.isValid()) {
+        qCWarning(lcNet) << "can't listen: no TLS certificate";
+        QTimer::singleShot(0, this, [this] {
+            emit notify(tr("Phones can't connect: this computer couldn't create a secure connection."));
+        });
+    } else if (!server->listen(controlPort())) {
         qCWarning(lcNet) << "can't listen on control port" << controlPort() << server->errorString();
         // The UI isn't connected yet; say it once it is.
         QTimer::singleShot(0, this, [this, error = server->errorString()] {
@@ -251,8 +261,8 @@ void ReceiverController::updateConnectLinks()
             screen->setConnectLink({});
             continue;
         }
-        beamr::ConnectLink link{m_receiverName, screen->screenId(), screen->pairToken(), m_addresses,
-                                quint16(port())};
+        beamr::ConnectLink link{m_receiverName, screen->screenId(), screen->pairToken(),
+                                m_identity.fingerprintText(), m_addresses, quint16(port())};
         screen->setConnectLink(link.toString());
     }
 }

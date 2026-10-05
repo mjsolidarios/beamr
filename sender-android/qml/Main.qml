@@ -150,6 +150,15 @@ ApplicationWindow {
             appVersion: window.appVersion
             onBackRequested: pages.pop()
             onIntroductionRequested: window.replayIntroduction = true
+            onLicensesRequested: pages.push(licensesScreen)
+        }
+    }
+
+    Component {
+        id: licensesScreen
+
+        LicensesPage {
+            onBackRequested: pages.pop()
         }
     }
 

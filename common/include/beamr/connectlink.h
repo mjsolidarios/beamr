@@ -9,15 +9,17 @@ namespace beamr {
 // since the sender picks the one on its own network, and which of the
 // receiver's screens the code belongs to.
 //
-//   beamr://connect?name=Office%20PC&port=47700&screen=k3f9x2&pair=…&host=192.168.1.20&host=10.0.0.5
+//   beamr://connect?name=Office%20PC&port=47700&screen=k3f9x2&pair=…&key=…&host=192.168.1.20&host=10.0.0.5
 //
 // `pair` is a one-time code: a phone that scanned it was in front of the
-// screen, so the receiver lets it cast without asking.
+// screen, so the receiver lets it cast without asking. `key` is the
+// fingerprint of the receiver's TLS certificate.
 struct ConnectLink
 {
     QString name;
     QString screen;
     QString pair;
+    QString key;
     QStringList hosts;
     quint16 port = 0;
 

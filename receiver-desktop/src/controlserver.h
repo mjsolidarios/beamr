@@ -3,7 +3,10 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
-#include <QTcpServer>
+#include <QSslServer>
+#include <QString>
+
+#include <beamr/tlsidentity.h>
 
 class QTcpSocket;
 class ReceiverController;
@@ -16,10 +19,10 @@ class ControlServer : public QObject
     Q_OBJECT
 
 public:
-    explicit ControlServer(ReceiverController *controller);
+    explicit ControlServer(ReceiverController *controller, const beamr::TlsIdentity &identity);
 
     bool listen(quint16 port);
-    QString errorString() const { return m_server.errorString(); }
+    QString errorString() const { return m_error.isEmpty() ? m_server.errorString() : m_error; }
 
 private:
     void onNewConnection();
@@ -32,7 +35,9 @@ private:
     void close(const QString &requestId, const QJsonObject &lastMessage);
 
     ReceiverController *m_controller;
-    QTcpServer m_server;
+    beamr::TlsIdentity m_identity;
+    QString m_error;
+    QSslServer m_server;
     // Senders that said hello, by request id. Sockets that haven't are only
     // parented to the server.
     QHash<QString, QTcpSocket *> m_peers;
