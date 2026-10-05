@@ -81,10 +81,25 @@ set_target_properties(beamr_sender PROPERTIES
     # Pinned so a Qt upgrade can't quietly lower the Play target.
     QT_ANDROID_TARGET_SDK_VERSION 36
     QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
-    QT_ANDROID_VERSION_CODE 5
+    QT_ANDROID_VERSION_CODE 6
     # Manifest and Java sources for screen capture.
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )
+
+# Qt loads OpenSSL itself and does not put it in the APK. Without these
+# libraries the phone logs "TLS initialization failed" and every cast fails
+# before the handshake. Pinned so a rebuild keeps the same OpenSSL 3.1.8.
+if(ANDROID)
+    include(FetchContent)
+    FetchContent_Declare(
+        android_openssl
+        URL https://github.com/KDAB/android_openssl/archive/b71f1470962019bd89534a2919f5925f93bc5779.zip
+        URL_HASH SHA256=9277d62ecdb4809801e2c369e0a639c154e0d9137e8d60863b44bf07d16ed5b3
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    FetchContent_MakeAvailable(android_openssl)
+    include(${android_openssl_SOURCE_DIR}/android_openssl.cmake)
+    add_android_openssl_libraries(beamr_sender)
+endif()
 
 # Qt Core asks for shared storage, which beamr never uses. The manifest
 # merger is also told to drop it. Filtering here keeps it out of the

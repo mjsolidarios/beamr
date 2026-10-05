@@ -61,14 +61,16 @@ int main(int argc, char *argv[])
     check(beamr::notices::text().contains(QStringLiteral("AndroidX"))
               && beamr::notices::text().contains(QStringLiteral("libc++"))
               && beamr::notices::text().contains(QStringLiteral("coroutines"))
+              && beamr::notices::text().contains(QStringLiteral("OpenSSL"))
               && beamr::notices::text().contains(QStringLiteral("micro-ecc")),
           "bundled notices");
     check(beamr::notices::license(QStringLiteral("apache-2.0")).isEmpty()
               && beamr::notices::license(QStringLiteral("androidx")).contains(QStringLiteral("Apache"))
               && beamr::notices::license(QStringLiteral("coroutines")).contains(QStringLiteral("Apache"))
               && beamr::notices::license(QStringLiteral("libcxx")).contains(QStringLiteral("LLVM Exceptions"))
+              && beamr::notices::license(QStringLiteral("openssl")).contains(QStringLiteral("Apache"))
               && beamr::notices::license(QStringLiteral("micro-ecc")).contains(QStringLiteral("Kenneth MacKay"))
-              && beamr::notices::licenses().size() >= 9,
+              && beamr::notices::licenses().size() >= 10,
           "bundled license texts");
 
     if (!identity.isValid())

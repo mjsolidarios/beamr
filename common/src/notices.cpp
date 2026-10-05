@@ -33,6 +33,7 @@ const Entry kLicenses[] = {
     {"androidx", "AndroidX (Apache 2.0)", ":/beamr/notices/licenses/Apache-2.0.txt"},
     {"coroutines", "Kotlin coroutines (Apache 2.0)", ":/beamr/notices/licenses/Apache-2.0.txt"},
     {"libcxx", "libc++ (Apache 2.0 with LLVM Exceptions)", ":/beamr/notices/licenses/LLVM-libc++.txt"},
+    {"openssl", "OpenSSL (Apache 2.0)", ":/beamr/notices/licenses/Apache-2.0.txt"},
     {"lucide", "Lucide icons (ISC)", ":/beamr/notices/licenses/Lucide-ISC.txt"},
     {"micro-ecc", "micro-ecc (BSD 2-clause)", ":/beamr/notices/third_party/micro-ecc/LICENSE.txt"},
 };

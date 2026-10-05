@@ -172,6 +172,8 @@ for details and where to get Qt's source.
   generator (MIT)
 - [`third_party/micro-ecc`](third_party/micro-ecc): Kenneth MacKay's micro-ecc
   (BSD 2-clause), used to build the receiver's TLS certificate
+- OpenSSL 3.1.8 in the Android app (Apache 2.0), which Qt loads to encrypt the
+  cast. The Android build downloads the pinned binaries.
 - Icons from [Lucide](https://lucide.dev) (ISC)
 - The app icon's editable SVG masters are in [`assets/icon`](assets/icon/README.md);
   `generate.py` makes every Android, desktop, and tray variant from them

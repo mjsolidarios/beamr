@@ -9,6 +9,7 @@
 #include <QQuickImageProvider>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QSslSocket>
 #include <QStyleHints>
 #include <QSysInfo>
 #include <QTimer>
@@ -257,6 +258,14 @@ SenderController::SenderController(QObject *parent)
 
     s_instance = this;
 #ifdef Q_OS_ANDROID
+    // Extra libraries are loaded before main. If OpenSSL is missing, say so
+    // here; otherwise the failure only shows up as a refused cast.
+    if (!QSslSocket::supportsSsl()) {
+        qCWarning(lcNet) << "TLS initialization failed";
+        QTimer::singleShot(0, this, [this] {
+            setMessage(tr("This phone can't start a secure connection. Reinstall beamr."), true);
+        });
+    }
     registerCaptureNatives();
     registerScanNatives();
     // Text size can change in Android's settings while beamr is in the

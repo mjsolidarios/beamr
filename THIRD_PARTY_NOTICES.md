@@ -93,6 +93,14 @@ AndroidX Core brings in [Kotlin coroutines](https://github.com/Kotlin/kotlinx.co
 The phone app ships the NDK's `libc++_shared.so` under the **Apache License 2.0
 with LLVM Exceptions**. The text is in [licenses/LLVM-libc++.txt](licenses/LLVM-libc++.txt).
 
+## OpenSSL
+
+The phone app ships [OpenSSL](https://www.openssl.org) 3.1.8 (`libssl` and
+`libcrypto`) so Qt can encrypt the cast. The binaries are the Android builds
+from [KDAB/android_openssl](https://github.com/KDAB/android_openssl) commit
+`b71f147`. OpenSSL is Apache License 2.0. The text is in
+[licenses/Apache-2.0.txt](licenses/Apache-2.0.txt).
+
 ## App icon
 
 The beamr app icon was generated with OpenAI's Codex image generation for this
