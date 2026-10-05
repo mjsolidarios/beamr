@@ -385,6 +385,19 @@ details p a { color: var(--color-accent); text-decoration: underline; text-under
 .footer-meta nav a:hover, .footer-credit a:hover { color: var(--color-accent); }
 .footer-credit { font-size: var(--text-xs); color: var(--color-ink-3); }
 
+/* ---------- Privacy policy ---------- */
+.policy { padding-top: calc(var(--nav-h) + var(--space-3xl)); padding-bottom: var(--space-3xl); }
+.policy-wrap { max-width: 68ch; }
+.policy h1 { font-size: var(--text-2xl); font-weight: 600; line-height: 1.05; letter-spacing: -0.045em; }
+.policy .updated { margin-top: var(--space-sm); color: var(--color-ink-3); font-size: var(--text-sm); }
+.policy h2 { margin-top: var(--space-xl); font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.03em; line-height: 1.25; }
+.policy p, .policy li { color: var(--color-ink-2); }
+.policy p, .policy ul { margin-top: var(--space-sm); }
+.policy ul { padding-left: 1.15rem; }
+.policy li + li { margin-top: 0.35rem; }
+.policy a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.policy a:hover { color: var(--color-accent-strong); }
+
 /* ---------- Motion: initial states, set before GSAP so the hero never flashes ---------- */
 .motion [data-intro] { opacity: 0; }
 

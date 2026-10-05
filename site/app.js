@@ -27,9 +27,12 @@ function openLinkedAnswer() {
   if (target instanceof HTMLDetailsElement) target.open = true;
 }
 window.addEventListener('hashchange', openLinkedAnswer);
-document.querySelector('a[href="#macos-help"]').addEventListener('click', () => {
-  document.getElementById('macos-help').open = true;
-});
+const macosHelp = document.querySelector('a[href="#macos-help"]');
+if (macosHelp) {
+  macosHelp.addEventListener('click', () => {
+    document.getElementById('macos-help').open = true;
+  });
+}
 openLinkedAnswer();
 
 // Scroll motion. Without GSAP the page is complete as it is, so bail quietly.

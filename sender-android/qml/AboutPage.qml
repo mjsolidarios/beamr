@@ -234,6 +234,13 @@ Item {
                 }
 
                 LinkRow {
+                    glyph: "info"
+                    title: qsTr("Privacy policy")
+                    subtitle: qsTr("What the apps keep, and what they send")
+                    onClicked: Qt.openUrlExternally("https://mjsolidarios.github.io/beamr/privacy.html")
+                }
+
+                LinkRow {
                     glyph: "book-open"
                     title: qsTr("Show the introduction")
                     external: false

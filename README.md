@@ -77,7 +77,8 @@ Every push builds, in [GitHub Actions](https://github.com/mjsolidarios/beamr/act
   a newer one means uninstalling the old one first.
 
 Signed releases go on the [Releases](https://github.com/mjsolidarios/beamr/releases)
-page (see [Releasing](#releasing)).
+page (see [Releasing](#releasing)). The privacy policy for the Play listing is
+[privacy.html](https://mjsolidarios.github.io/beamr/privacy.html).
 
 ## Building
 

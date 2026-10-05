@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f6f8">
+  <meta name="description" content="Privacy policy for beamr. Screen and sound stay on your local network. beamr has no account and no cloud relay.">
+  <title>Privacy policy | beamr</title>
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://mjsolidarios.github.io/beamr/privacy.html">
+  <link rel="icon" href="./assets/beamr-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/beamr-icon.png">
+  <link rel="preload" href="./assets/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      try {
+        const saved = localStorage.getItem('beamr-theme');
+        if (saved === 'light' || saved === 'dark') root.dataset.theme = saved;
+      } catch {}
+    })();
+  </script>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner">
+      <a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="34" height="34" alt=""><span>beamr</span></a>
+      <nav class="nav__links" aria-label="Main navigation">
+        <a href="./#features">Features</a>
+        <a href="./#how-it-works">How it works</a>
+        <a href="./#faq">FAQ</a>
+      </nav>
+      <div class="nav__actions">
+        <a class="icon-button" href="https://github.com/mjsolidarios/beamr" aria-label="beamr on GitHub"><svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#github-logo"/></svg></a>
+        <button class="theme-toggle icon-button" type="button" aria-label="Switch to dark theme" hidden><svg class="icon theme-moon" aria-hidden="true"><use href="./assets/icons.svg#moon"/></svg><svg class="icon theme-sun" aria-hidden="true"><use href="./assets/icons.svg#sun"/></svg></button>
+        <a class="button button-small" href="./#downloads">Download<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#arrow-down"/></svg></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="policy">
+    <article class="container policy-wrap">
+      <h1>Privacy policy</h1>
+      <p class="updated">5 October 2026. Applies to the beamr Android app (<span class="muted">io.github.mjsolidarios.beamr</span>), the beamr app for Windows, macOS, and Linux, and this website.</p>
+
+      <p>beamr is made by Mark Joseph Solidarios. It casts an Android phone’s screen, and the sound apps are playing, to a computer on the same Wi-Fi. There is no beamr account.</p>
+
+      <h2>The cast stays between your devices</h2>
+      <p>Screen video and app audio travel only to the computer you connect, over your local network. beamr does not run a cloud relay, and it does not upload the cast to the developer.</p>
+      <p>That connection is TLS. The computer keeps its own certificate, and the private key stays on that computer. When you scan the QR code, the phone checks the certificate fingerprint printed in the code. When you pick a computer under Nearby, or type an address, the phone encrypts the connection and then requires that same certificate for the video.</p>
+      <p>Finding computers on the network uses a short UDP message. The computer answers with its name, port, and how many screens are free. That reply does not include the certificate fingerprint, a pairing code, or anything from your screen.</p>
+      <p>The computer can record the cast to an MP4, or save a screenshot, only when you ask it to. Those files stay in your Movies and Pictures folders. beamr captures what other apps play. It does not open the microphone.</p>
+
+      <h2>What the apps store on the device</h2>
+      <p>The phone keeps these in its private app storage:</p>
+      <ul>
+        <li>A device id the app creates, your chosen device name, and the phone’s manufacturer and model.</li>
+        <li>Recent computers: each name and address.</li>
+        <li>Picture quality, whether cast sound is on, light or dark appearance, and whether you have finished the introduction.</li>
+      </ul>
+      <p>While a cast is connected, the phone tells that computer its device id, name, and model, and the screen and pairing details from a QR code when you scanned one. The computer uses them to show who is asking to cast and to resume the same screen if the Wi-Fi drops for a moment.</p>
+      <p>The computer keeps its display name, whether new phones need approval, trusted phones (device id and name), the chosen speakers, appearance, and whether it stays running in the tray. It also keeps the TLS certificate and private key in its own settings folder. Recordings are named <span class="muted">beamr-….mp4</span> and screenshots <span class="muted">beamr-….png</span>.</p>
+
+      <h2>QR scanning</h2>
+      <p>Scanning a QR code uses Google’s code scanner in Google Play services (<span class="muted">com.google.android.gms:play-services-code-scanner</span>). beamr does not ask for the camera permission. Play services shows the scanner and returns the text of the code to beamr.</p>
+      <p>Google’s documentation says the image is processed on the device, and that Google does not store the image or the scan result. Auto zoom is turned on. For that option, Google says it collects a session id that is not meant to identify you or your phone, zoom changes, and the predicted position of the code. Google also describes diagnostic data for this SDK: device and app information, performance, and similar technical events, sent to Google over HTTPS and not sold onward by ML Kit. The details are in <a href="https://developers.google.com/ml-kit/vision/barcode-scanning/code-scanner">Google’s code scanner guide</a> and <a href="https://developers.google.com/ml-kit/android-data-disclosure">Google’s ML Kit data disclosure</a>.</p>
+      <p>Phones without Play services can type the computer’s address instead.</p>
+
+      <h2>Android permissions</h2>
+      <ul>
+        <li>Network access, to reach a computer on your Wi-Fi and to discover computers nearby.</li>
+        <li>A foreground service with the media-projection type, so the cast can continue while you use another app, after Android’s own screen-capture prompt.</li>
+        <li>Microphone permission, which Android requires before an app can capture what other apps play. beamr uses it for that playback. It does not record the microphone.</li>
+        <li>Notifications, for the casting notice and its Stop button.</li>
+      </ul>
+      <p>beamr does not request your location, contacts, photos, camera, or shared storage.</p>
+
+      <h2>Android backup</h2>
+      <p>The phone app allows Android backup. If backup is on for the phone, Android may include the app’s saved settings in the backup already tied to your Google account. beamr does not operate that backup. Screen recordings are on the computer, not in the phone backup.</p>
+
+      <h2>This website</h2>
+      <p>This site is static files hosted by GitHub Pages. Choosing a light or dark theme stores that choice in local storage on your browser, under the name <span class="muted">beamr-theme</span>. The site sets no analytics cookie and has no account. Downloads are files from GitHub Releases. GitHub’s own handling of visits and downloads is described in the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub privacy statement</a>.</p>
+
+      <h2>Sharing, ads, and sale</h2>
+      <p>beamr does not sell personal information, and the apps do not show ads. The people who receive a cast are the computer you connect to. Google receives the code-scanner diagnostics described above. GitHub hosts this website and the downloads. There is no other sharing.</p>
+
+      <h2>Children</h2>
+      <p>beamr is not directed at children under 13, and it does not knowingly collect personal information from them.</p>
+
+      <h2>How long it stays, and how to remove it</h2>
+      <p>A cast is not kept after you stop it, except for recordings and screenshots you chose to save. Uninstalling the phone app removes the settings it stored. If Android backup later restores the app, those settings can come back with it. On the computer, delete recordings from your Movies folder and screenshots from your Pictures folder. Uninstalling the computer app removes its settings and certificate. Saved video and pictures remain until you delete those files.</p>
+
+      <h2>Changes</h2>
+      <p>When this policy changes, the date at the top changes with it. The current text is always this page.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about this policy go to <a href="https://github.com/mjsolidarios/beamr/issues">GitHub issues</a> for <a href="https://github.com/mjsolidarios/beamr">mjsolidarios/beamr</a>.</p>
+    </article>
+  </main>
+
+  <footer class="footer container">
+    <p class="footer-line">A little less distance between your screens.</p>
+    <div class="footer-meta">
+      <a class="brand" href="./" aria-label="beamr home"><img src="./assets/beamr-icon.svg" width="28" height="28" alt=""><span>beamr</span></a>
+      <nav aria-label="Project links"><a href="https://github.com/mjsolidarios/beamr">GitHub</a><a href="https://github.com/mjsolidarios/beamr/issues">Issues</a><a href="https://github.com/mjsolidarios/beamr/releases">All releases</a><a href="./privacy.html" aria-current="page">Privacy</a><a href="https://github.com/mjsolidarios/beamr/blob/main/LICENSE">MIT license</a></nav>
+      <p class="footer-credit">Made by <a href="https://github.com/mjsolidarios">mjsolidarios</a>. Built with Qt.</p>
+    </div>
+  </footer>
+</body>
+</html>
