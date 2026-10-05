@@ -22,11 +22,14 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.graphics.Bitmap;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
+import android.view.PixelCopy;
 import android.view.Surface;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 
 // Mirrors the screen into a hardware H.264 encoder and hands every encoded
@@ -67,7 +70,8 @@ public class ScreenCaptureService extends Service {
     private volatile AudioCapture mAudio;
     private int mWidth;
     private int mHeight;
-    private boolean mStopped;
+    // Read from the encoder thread while stopCapture runs elsewhere.
+    private volatile boolean mStopped;
 
     // The preset's limits: Smooth 1080p60 at 8 Mbit/s, Balanced 1080p30 at
     // 5 Mbit/s, Data saver 720p30 at 2.5 Mbit/s. Smooth matches beamr/config.h.
@@ -78,6 +82,19 @@ public class ScreenCaptureService extends Service {
     // Android 14+ reports what's captured (the screen or a single app) and
     // its size; before that, it's always the whole screen.
     private boolean mContentSizeReported;
+    // Once this cast is known to be one app, it stays that way: the whole
+    // screen never goes invisible, and a fullscreen app can look full-size
+    // until the person leaves it.
+    private boolean mKnownApp;
+    private String mReportedTarget = "";
+    // A small live frame for the cast card. The encoder often consumes the
+    // surface, so a few failed copies stop the attempt; the card still says
+    // what is shared.
+    private int mPreviewFailures;
+    private volatile boolean mPreviewStopped;
+    private static final int PREVIEW_LONG_EDGE = 320;
+    private static final int PREVIEW_INTERVAL_MS = 1000;
+    private static final int PREVIEW_MAX_FAILURES = 3;
 
     static ScreenCaptureService instance() {
         return sInstance;
@@ -135,6 +152,11 @@ public class ScreenCaptureService extends Service {
     }
 
     private void start(int resultCode, Intent data, boolean audio) {
+        mContentSizeReported = false;
+        mKnownApp = false;
+        mReportedTarget = "";
+        mPreviewFailures = 0;
+        mPreviewStopped = false;
         try {
             MediaProjectionManager manager = getSystemService(MediaProjectionManager.class);
             mProjection = manager.getMediaProjection(resultCode, data);
@@ -153,8 +175,20 @@ public class ScreenCaptureService extends Service {
                 @Override
                 public void onCapturedContentResize(int width, int height) {
                     mContentSizeReported = true;
-                    if (width > 0 && height > 0)
+                    if (width > 0 && height > 0) {
+                        reportShareTarget(width, height);
                         resizeTo(width, height);
+                    }
+                }
+
+                // The whole screen stays visible. An app can be covered,
+                // which is how a fullscreen app reveals itself.
+                @Override
+                public void onCapturedContentVisibilityChanged(boolean isVisible) {
+                    if (!isVisible) {
+                        mKnownApp = true;
+                        reportShareTargetName("app");
+                    }
                 }
             }, mHandler);
 
@@ -165,6 +199,8 @@ public class ScreenCaptureService extends Service {
             sInstance = this;
             Log.i(TAG, "capturing " + mWidth + "x" + mHeight);
             CaptureBridge.nativeCaptureStarted(mWidth, mHeight);
+            beginShareReport();
+            schedulePreview();
             startAudio(audio);
             CastTileService.refresh(this);
         } catch (Exception e) {
@@ -222,6 +258,12 @@ public class ScreenCaptureService extends Service {
             oldSurface.release();
             Log.i(TAG, "resized to " + mWidth + "x" + mHeight);
             CaptureBridge.nativeCaptureStarted(mWidth, mHeight);
+            // The old surface is gone. A copy that had given up can try the new one.
+            mPreviewFailures = 0;
+            if (mPreviewStopped && !mStopped) {
+                mPreviewStopped = false;
+                schedulePreview();
+            }
         } catch (Exception e) {
             Log.e(TAG, "can't resize capture", e);
             stopCapture(e.getMessage() != null ? e.getMessage() : e.toString());
@@ -248,6 +290,7 @@ public class ScreenCaptureService extends Service {
                 return;
             mStopped = true;
         }
+        mPreviewStopped = true;
         sInstance = null;
 
         if (mAudio != null) {
@@ -373,6 +416,101 @@ public class ScreenCaptureService extends Service {
 
     private static int align16(double value) {
         return Math.max(16, ((int) value) / 16 * 16);
+    }
+
+    // Before Android 14 the capture is the whole screen. From 14 on, the
+    // resize callback's size is what's shared: status and navigation bars
+    // are far taller than 8px, so that slack only absorbs rounding.
+    private void reportShareTarget(int contentWidth, int contentHeight) {
+        if (Build.VERSION.SDK_INT < 34) {
+            reportShareTargetName("screen");
+            return;
+        }
+        if (mKnownApp) {
+            reportShareTargetName("app");
+            return;
+        }
+        DisplayMetrics metrics = displayMetrics();
+        boolean full = contentWidth >= metrics.widthPixels - 8 && contentHeight >= metrics.heightPixels - 8;
+        if (!full)
+            mKnownApp = true;
+        reportShareTargetName(full ? "screen" : "app");
+    }
+
+    private void reportShareTargetName(String target) {
+        if (target.equals(mReportedTarget))
+            return;
+        mReportedTarget = target;
+        CaptureBridge.nativeShareTarget(target);
+    }
+
+    private void beginShareReport() {
+        if (Build.VERSION.SDK_INT < 34) {
+            reportShareTargetName("screen");
+            return;
+        }
+        // No resize callback means the virtual display is still the whole screen.
+        mHandler.postDelayed(() -> {
+            if (!mStopped && !mContentSizeReported && !mKnownApp)
+                reportShareTargetName("screen");
+        }, 600);
+    }
+
+    private void schedulePreview() {
+        Handler handler = mHandler;
+        if (handler == null || mStopped || mPreviewStopped)
+            return;
+        handler.postDelayed(this::capturePreview, PREVIEW_INTERVAL_MS);
+    }
+
+    private void capturePreview() {
+        if (mStopped || mPreviewStopped)
+            return;
+        Surface surface = mSurface;
+        if (surface == null || !surface.isValid() || mWidth <= 0 || mHeight <= 0) {
+            notePreviewFailure();
+            if (!mStopped && !mPreviewStopped)
+                schedulePreview();
+            return;
+        }
+        int longEdge = Math.max(mWidth, mHeight);
+        float scale = Math.min(1f, PREVIEW_LONG_EDGE / (float) longEdge);
+        int width = Math.max(1, Math.round(mWidth * scale));
+        int height = Math.max(1, Math.round(mHeight * scale));
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        try {
+            PixelCopy.request(surface, bitmap, result -> finishPreview(bitmap, result), mHandler);
+        } catch (IllegalArgumentException e) {
+            bitmap.recycle();
+            notePreviewFailure();
+            if (!mStopped && !mPreviewStopped)
+                schedulePreview();
+        }
+    }
+
+    private void finishPreview(Bitmap bitmap, int result) {
+        try {
+            if (mStopped || mPreviewStopped)
+                return;
+            if (result == PixelCopy.SUCCESS) {
+                mPreviewFailures = 0;
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                if (bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out))
+                    CaptureBridge.nativePreview(out.toByteArray());
+            } else {
+                notePreviewFailure();
+            }
+        } finally {
+            bitmap.recycle();
+            if (!mStopped && !mPreviewStopped)
+                schedulePreview();
+        }
+    }
+
+    private void notePreviewFailure() {
+        mPreviewFailures++;
+        if (mPreviewFailures >= PREVIEW_MAX_FAILURES)
+            mPreviewStopped = true;
     }
 
     @SuppressWarnings("deprecation")

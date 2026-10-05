@@ -89,6 +89,7 @@ qt_add_qml_module(beamr_receiver_ui
         qml/icons/layout-grid.svg
         qml/icons/maximize.svg
         qml/icons/minimize.svg
+        qml/icons/minus.svg
         qml/icons/monitor.svg
         qml/icons/pause.svg
         qml/icons/play.svg

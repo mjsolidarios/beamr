@@ -2,7 +2,11 @@
 
 #include <QGuiApplication>
 #include <QHostAddress>
+#include <QImage>
+#include <QMutex>
 #include <QNetworkInterface>
+#include <QQmlEngine>
+#include <QQuickImageProvider>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStyleHints>
@@ -47,6 +51,43 @@ const QString kOnboardingDoneKey = QStringLiteral("onboarding/done");
 
 // The one controller the capture service reports to. QML creates it once.
 SenderController *s_instance = nullptr;
+
+// Cast-card thumbnail. requestImage runs on the render thread; the engine
+// owns the provider once it's installed.
+class PreviewImageProvider : public QQuickImageProvider
+{
+public:
+    PreviewImageProvider()
+        : QQuickImageProvider(QQuickImageProvider::Image)
+    {
+    }
+
+    QImage requestImage(const QString &, QSize *size, const QSize &) override
+    {
+        QMutexLocker lock(&m_mutex);
+        if (size)
+            *size = m_image.size();
+        return m_image;
+    }
+
+    void setImage(const QImage &image)
+    {
+        QMutexLocker lock(&m_mutex);
+        m_image = image;
+    }
+
+    void clear()
+    {
+        QMutexLocker lock(&m_mutex);
+        m_image = {};
+    }
+
+private:
+    QMutex m_mutex;
+    QImage m_image;
+};
+
+PreviewImageProvider *g_preview = nullptr;
 
 struct Endpoint
 {
@@ -503,6 +544,7 @@ void SenderController::endCapture()
     QMetaObject::invokeMethod(m_stream, &StreamSender::closeAll);
     setCastState(Off);
     setAudioState({});
+    clearSharePreview();
     if (m_castSize.isValid()) {
         m_castSize = {};
         emit castSizeChanged();
@@ -542,6 +584,52 @@ void SenderController::setAudioState(const QString &state)
         return;
     m_audioState = state;
     emit audioStateChanged();
+}
+
+void SenderController::installPreviewProvider(QQmlEngine *engine)
+{
+    if (!engine || g_preview)
+        return;
+    g_preview = new PreviewImageProvider;
+    engine->addImageProvider(QStringLiteral("beamrpreview"), g_preview);
+}
+
+void SenderController::setShareTarget(const QString &target)
+{
+    if (m_castState == Off)
+        return;
+    if (target != QLatin1String("screen") && target != QLatin1String("app"))
+        return;
+    if (target == m_shareTarget)
+        return;
+    m_shareTarget = target;
+    emit shareTargetChanged();
+}
+
+void SenderController::setPreview(const QByteArray &jpeg)
+{
+    if (m_castState == Off || !g_preview)
+        return;
+    const QImage image = QImage::fromData(jpeg, "JPEG");
+    if (image.isNull())
+        return;
+    g_preview->setImage(image);
+    ++m_previewRevision;
+    emit previewRevisionChanged();
+}
+
+void SenderController::clearSharePreview()
+{
+    const bool hadTarget = !m_shareTarget.isEmpty();
+    const bool hadFrame = m_previewRevision != 0;
+    m_shareTarget.clear();
+    m_previewRevision = 0;
+    if (g_preview)
+        g_preview->clear();
+    if (hadTarget)
+        emit shareTargetChanged();
+    if (hadFrame)
+        emit previewRevisionChanged();
 }
 
 void SenderController::setOnboardingDone(bool done)
@@ -805,6 +893,35 @@ struct CaptureNatives
         });
     }
 
+    static void shareTarget(JNIEnv *, jclass, jstring target)
+    {
+        const QString text = QJniObject(target).toString();
+        QMetaObject::invokeMethod(qApp, [text] {
+            if (s_instance)
+                s_instance->setShareTarget(text);
+        });
+    }
+
+    static void preview(JNIEnv *env, jclass, jbyteArray jpeg)
+    {
+        if (!jpeg)
+            return;
+        const jsize n = env->GetArrayLength(jpeg);
+        // A 320px JPEG is a few dozen kilobytes; anything larger isn't one.
+        if (n <= 0 || n > 1024 * 1024)
+            return;
+        QByteArray bytes(n, Qt::Uninitialized);
+        env->GetByteArrayRegion(jpeg, 0, n, reinterpret_cast<jbyte *>(bytes.data()));
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            return;
+        }
+        QMetaObject::invokeMethod(qApp, [bytes] {
+            if (s_instance)
+                s_instance->setPreview(bytes);
+        });
+    }
+
     static void audioState(JNIEnv *, jclass, jstring state)
     {
         const QString text = QJniObject(state).toString();
@@ -876,6 +993,8 @@ void registerCaptureNatives()
             {"nativeAudio", "(Ljava/nio/ByteBuffer;IIJ)V", reinterpret_cast<void *>(&CaptureNatives::audio)},
             {"nativeAudioState", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::audioState)},
             {"nativeQuickCast", "()V", reinterpret_cast<void *>(&CaptureNatives::quickCast)},
+            {"nativeShareTarget", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::shareTarget)},
+            {"nativePreview", "([B)V", reinterpret_cast<void *>(&CaptureNatives::preview)},
         });
     if (!ok)
         qCWarning(lcBeamr) << "can't register capture callbacks; casting won't work";

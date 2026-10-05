@@ -32,8 +32,9 @@ Item {
         {
             art: 1,
             title: qsTr("Scan to connect"),
-            body: qsTr("Open beamr on your computer and scan the code it shows. No accounts, no cables, "
-                       + "and computers you've used stay one tap away.")
+            body: qsTr("Open beamr on your computer and scan the code it shows. A scanned code connects "
+                       + "straight away, with no account. Picking a computer nearby, or typing its address, "
+                       + "waits until you tap Allow on the computer.")
         },
         {
             art: 2,
@@ -44,7 +45,7 @@ Item {
         {
             art: 3,
             title: qsTr("Meet the desktop app"),
-            body: qsTr("beamr for Linux and Windows shows up to four phones side by side. Pause, record, "
+            body: qsTr("beamr for Windows, macOS, and Linux shows up to four phones side by side. Pause, record, "
                        + "take screenshots, and pick whose sound plays.")
         }
     ]

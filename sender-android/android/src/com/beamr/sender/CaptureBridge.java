@@ -32,6 +32,10 @@ public final class CaptureBridge {
     static native void nativeAudio(ByteBuffer buffer, int offset, int size, long ptsUs);
     static native void nativeAudioState(String state);
     static native void nativeQuickCast();
+    // "screen" or "app". The string is only valid during the call.
+    static native void nativeShareTarget(String target);
+    // One JPEG of the shared picture. The array is only valid during the call.
+    static native void nativePreview(byte[] jpeg);
 
     // The tile asked to cast. C++ may not be running yet (a cold start), so
     // it's kept until SenderController asks for it.

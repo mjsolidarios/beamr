@@ -27,6 +27,20 @@ Flickable {
     readonly property bool firstUse: !hasSessions && !hasRecent && !hasNearby
     readonly property bool addressIsPrimary: firstUse && !SenderController.canScan
     readonly property bool hasRecent: SenderController.canAddReceiver && availableRecent.length > 0
+    // Discovery can stay quiet on guest Wi-Fi. Stop the "looking" line after a beat.
+    readonly property bool waitingForNearby: firstUse && SenderController.discovering
+    property bool nearbyGaveUp: false
+
+    onWaitingForNearbyChanged: {
+        if (waitingForNearby)
+            nearbyGaveUp = false
+    }
+
+    Timer {
+        interval: 8000
+        running: root.waitingForNearby && !root.nearbyGaveUp
+        onTriggered: root.nearbyGaveUp = true
+    }
 
     // Look for receivers only while this screen is in front.
     Binding {
@@ -207,6 +221,7 @@ Flickable {
             spacing: 10
 
             Rectangle {
+                visible: !root.nearbyGaveUp
                 implicitWidth: 8
                 implicitHeight: 8
                 radius: 4
@@ -222,7 +237,11 @@ Flickable {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Looking for computers running beamr on this Wi‑Fi…")
+                text: root.nearbyGaveUp
+                      ? SenderController.canScan
+                        ? qsTr("Nothing nearby yet. Guest Wi-Fi and firewalls often hide the computer. Scan its QR code instead.")
+                        : qsTr("Nothing nearby yet. Guest Wi-Fi and firewalls often hide the computer. Enter the address shown in its window.")
+                      : qsTr("Looking for computers running beamr on this Wi‑Fi…")
                 color: Theme.textMuted
                 font.pixelSize: Theme.sp(14)
                 wrapMode: Text.Wrap
@@ -257,52 +276,13 @@ Flickable {
                     model: root.availableRecent
 
                     delegate: ReceiverRow {
-                        id: recentRow
-
                         required property var modelData
 
                         name: modelData.name
                         address: modelData.address
+                        forgettable: true
                         onClicked: root.addReceiver(modelData.address)
-                        // Forgetting is rare; keep it out of the way of connecting.
-                        onPressAndHold: {
-                            SenderController.haptic(true)
-                            forgetMenu.popup(recentRow, recentRow.width - forgetMenu.width - 12, recentRow.height / 2)
-                        }
-                        Accessible.description: qsTr("Touch and hold to forget")
-
-                        Menu {
-                            id: forgetMenu
-
-                            padding: 6
-
-                            background: Rectangle {
-                                implicitWidth: 180
-                                radius: Theme.radiusSmall
-                                color: Theme.surfaceRaised
-                                border.color: Theme.border
-                            }
-
-                            MenuItem {
-                                id: forgetItem
-
-                                text: qsTr("Forget")
-                                onTriggered: SenderController.forgetReceiver(recentRow.modelData.address)
-
-                                contentItem: Text {
-                                    leftPadding: 6
-                                    text: forgetItem.text
-                                    color: Theme.danger
-                                    font.pixelSize: Theme.sp(15)
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                background: Rectangle {
-                                    implicitHeight: Theme.touchTarget
-                                    radius: Theme.radiusSmall - 4
-                                    color: forgetItem.down || forgetItem.highlighted ? Theme.pressed : "transparent"
-                                }
-                            }
-                        }
+                        onForgetRequested: SenderController.forgetReceiver(modelData.address)
                     }
                 }
             }

@@ -81,7 +81,7 @@ set_target_properties(beamr_sender PROPERTIES
     # Pinned so a Qt upgrade can't quietly lower the Play target.
     QT_ANDROID_TARGET_SDK_VERSION 36
     QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
-    QT_ANDROID_VERSION_CODE 4
+    QT_ANDROID_VERSION_CODE 5
     # Manifest and Java sources for screen capture.
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
 )

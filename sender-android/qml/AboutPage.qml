@@ -222,7 +222,7 @@ Item {
                 LinkRow {
                     glyph: "monitor"
                     title: qsTr("Get the desktop app")
-                    subtitle: qsTr("For Linux and Windows")
+                    subtitle: qsTr("For Windows, macOS, and Linux")
                     onClicked: Qt.openUrlExternally(root.repoUrl + "/releases")
                 }
 

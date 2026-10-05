@@ -36,6 +36,7 @@ const QString kRequireApprovalKey = QStringLiteral("receiver/requireApproval");
 const QString kTrustedKey = QStringLiteral("trustedDevices");
 const QString kAudioOutputKey = QStringLiteral("audio/output");
 const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
+const QString kControlHintSeenKey = QStringLiteral("viewer/controlHintSeen");
 
 // BEAMR_PORT overrides the port, e.g. to run a second receiver on one computer.
 quint16 controlPort()
@@ -88,6 +89,7 @@ ReceiverController::ReceiverController(QObject *parent)
     m_requireApproval = settings.value(kRequireApprovalKey, true).toBool();
     m_audioOutput = settings.value(kAudioOutputKey).toString();
     m_colorScheme = settings.value(kColorSchemeKey, int(Qt::ColorScheme::Unknown)).toInt();
+    m_controlHintPending = !settings.value(kControlHintSeenKey, false).toBool();
     // Also for the native title bars, where the platform supports it.
     QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme(m_colorScheme));
 
@@ -159,6 +161,15 @@ QVariantList ReceiverController::audioOutputs() const
     for (const QAudioDevice &device : devices)
         outputs.append(QVariantMap{{"id", QString::fromUtf8(device.id())}, {"name", device.description()}});
     return outputs;
+}
+
+void ReceiverController::dismissControlHint()
+{
+    if (!m_controlHintPending)
+        return;
+    m_controlHintPending = false;
+    QSettings().setValue(kControlHintSeenKey, true);
+    emit controlHintPendingChanged();
 }
 
 void ReceiverController::setColorScheme(int scheme)

@@ -55,6 +55,8 @@ class ReceiverController : public QObject
     // For the About section: the Qt this build runs on.
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+    // The first cast leaves the control bar up, with its shortcuts, until one is used.
+    Q_PROPERTY(bool controlHintPending READ controlHintPending NOTIFY controlHintPendingChanged)
 
 public:
     enum State { Idle, Casting };
@@ -91,6 +93,8 @@ public:
     bool demoAvailable() const;
     QString qtVersion() const { return QString::fromLatin1(qVersion()); }
     QString appVersion() const;
+    bool controlHintPending() const { return m_controlHintPending; }
+    Q_INVOKABLE void dismissControlHint();
 
     // Entry points for the network layer: a sender asked to cast (to
     // `screenId`, or anywhere when empty), or hung up before or during its
@@ -140,6 +144,7 @@ signals:
     void trustedDevicesChanged();
     void exportingChanged();
     void notify(const QString &message);
+    void controlHintPendingChanged();
 
     // For the network layer.
     void requestAnswered(const QString &requestId, bool accepted);
@@ -193,4 +198,5 @@ private:
     QTimer m_ticker;
     int m_tickCount = 0;
     int m_demoCounter = 0;
+    bool m_controlHintPending = true;
 };

@@ -101,29 +101,92 @@ Rectangle {
         Label {
             Layout.fillWidth: true
             Layout.topMargin: 14
-            text: root.live
-                  ? qsTr("Switch to any app. Stop here or from the notification.")
-                  : root.castState === SenderController.Starting
-                    ? qsTr("In the dialog that opens, share your entire screen or just one app, then allow it.")
-                    : qsTr("Your screen shows on every receiver below that allowed this phone.")
+            text: root.live && SenderController.shareTarget === "app"
+                  ? qsTr("That app stays on the computer while it's open. Stop here or from the notification.")
+                  : root.live
+                    ? qsTr("Switch to any app. Stop here or from the notification.")
+                    : root.castState === SenderController.Starting
+                      ? qsTr("In the dialog that opens, share your entire screen or just one app, then allow it.")
+                      : qsTr("Your screen shows on every receiver below that allowed this phone.")
             color: Theme.textMuted
             font.pixelSize: Theme.sp(14)
             lineHeight: 1.15
             wrapMode: Text.Wrap
         }
 
-        Label {
-            Layout.topMargin: 6
+        // What this cast is actually sharing, beside a small frame of it.
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 14
             visible: root.live && SenderController.castSize.width > 0
-            text: {
-                const size = qsTr("%1 × %2 · %3 fps").arg(SenderController.castSize.width)
-                                                      .arg(SenderController.castSize.height)
-                                                      .arg(SenderController.frameRate)
-                return SenderController.audioState === "on" ? qsTr("%1 · with sound").arg(size) : size
+            spacing: 12
+
+            Rectangle {
+                readonly property real aspect: SenderController.castSize.height > 0
+                                                ? SenderController.castSize.width / SenderController.castSize.height
+                                                : 1
+                readonly property int frameWidth: Math.round(Math.min(200, (aspect < 1 ? 120 : 72) * aspect))
+                readonly property int frameHeight: Math.max(1, Math.round(frameWidth / aspect))
+
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: frameWidth
+                Layout.preferredHeight: frameHeight
+                implicitWidth: frameWidth
+                implicitHeight: frameHeight
+                radius: Theme.radiusSmall
+                color: Theme.bg
+                border.color: Theme.border
+                clip: true
+
+                Image {
+                    anchors.fill: parent
+                    visible: SenderController.previewRevision > 0
+                    cache: false
+                    mipmap: true
+                    asynchronous: false
+                    fillMode: Image.PreserveAspectFit
+                    source: visible ? "image://beamrpreview/" + SenderController.previewRevision : ""
+                }
+
+                Icon {
+                    anchors.centerIn: parent
+                    visible: SenderController.previewRevision === 0
+                    glyph: SenderController.shareTarget === "app" ? "smartphone"
+                         : SenderController.shareTarget === "screen" ? "monitor" : "cast"
+                    size: 22
+                    color: Theme.textFaint
+                }
             }
-            color: Theme.textFaint
-            font.pixelSize: Theme.sp(13)
-            font.features: { "tnum": 1 }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: text.length > 0
+                    text: SenderController.shareTarget === "app" ? qsTr("One app")
+                        : SenderController.shareTarget === "screen" ? qsTr("Entire screen") : ""
+                    color: Theme.text
+                    font.pixelSize: Theme.sp(14)
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: {
+                        const size = qsTr("%1 × %2 · %3 fps").arg(SenderController.castSize.width)
+                                                              .arg(SenderController.castSize.height)
+                                                              .arg(SenderController.frameRate)
+                        return SenderController.audioState === "on" ? qsTr("%1 · with sound").arg(size) : size
+                    }
+                    color: Theme.textFaint
+                    font.pixelSize: Theme.sp(13)
+                    font.features: { "tnum": 1 }
+                    wrapMode: Text.Wrap
+                }
+            }
         }
 
         // Why there's no sound, when it was asked for.

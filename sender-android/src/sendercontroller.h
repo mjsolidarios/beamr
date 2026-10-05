@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QObject>
 #include <QSize>
 #include <QThread>
@@ -11,6 +12,7 @@
 
 #include "sessionmodel.h"
 
+class QQmlEngine;
 class ReceiverSession;
 class DiscoveryClient;
 class StreamSender;
@@ -65,6 +67,10 @@ class SenderController : public QObject
     // How sound went for the current cast: on, off, denied, unavailable;
     // empty when not casting.
     Q_PROPERTY(QString audioState READ audioState NOTIFY audioStateChanged)
+    // "" while not casting, else "screen" (everything) or "app" (one app).
+    Q_PROPERTY(QString shareTarget READ shareTarget NOTIFY shareTargetChanged)
+    // Bumps when a new cast-preview frame is ready. 0 means there isn't one.
+    Q_PROPERTY(int previewRevision READ previewRevision NOTIFY previewRevisionChanged)
     // Qt::ColorScheme: Unknown follows the system.
     Q_PROPERTY(int colorScheme READ colorScheme WRITE setColorScheme NOTIFY colorSchemeChanged)
 
@@ -101,6 +107,11 @@ public:
     bool shareAudio() const { return m_shareAudio; }
     void setShareAudio(bool share);
     QString audioState() const { return m_audioState; }
+    QString shareTarget() const { return m_shareTarget; }
+    int previewRevision() const { return m_previewRevision; }
+    // Registers the cast-preview image provider. Call before loading QML;
+    // the engine owns the provider after that.
+    static void installPreviewProvider(QQmlEngine *engine);
     int colorScheme() const;
     void setColorScheme(int scheme);
     QSize castSize() const { return m_castSize; }
@@ -158,6 +169,8 @@ signals:
     void onboardingDoneChanged();
     void fontScaleChanged();
     void audioStateChanged();
+    void shareTargetChanged();
+    void previewRevisionChanged();
 
 private:
     void setMessage(const QString &message, bool isError, const QString &retryAddress = {});
@@ -181,6 +194,9 @@ private:
     friend struct ScanNatives;
     void captureStarted(QSize size);
     void setAudioState(const QString &state);
+    void setShareTarget(const QString &target);
+    void setPreview(const QByteArray &jpeg);
+    void clearSharePreview();
     void captureStopped(const QString &reason);
     void videoOpened(const QString &sessionId);
     void videoClosed(const QString &sessionId, const QString &error);
@@ -203,5 +219,7 @@ private:
     bool m_onboardingDone = false;
     qreal m_fontScale = 1.0;
     QString m_audioState;
+    QString m_shareTarget;
+    int m_previewRevision = 0;
     QVariantList m_recent;
 };

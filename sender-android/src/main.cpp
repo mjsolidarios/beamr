@@ -5,6 +5,8 @@
 #include <beamr/config.h>
 #include <beamr/log.h>
 
+#include "sendercontroller.h"
+
 int main(int argc, char *argv[])
 {
     beamr::installLogPattern();
@@ -20,6 +22,7 @@ int main(int argc, char *argv[])
         QCoreApplication::installTranslator(&translator);
 
     QQmlApplicationEngine engine;
+    SenderController::installPreviewProvider(&engine);
     engine.setInitialProperties({
         {QStringLiteral("appVersion"), QString::fromLatin1(beamr::kVersion)},
     });

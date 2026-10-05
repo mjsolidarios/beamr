@@ -326,25 +326,55 @@ ApplicationWindow {
     Shortcut {
         sequence: "Space"
         enabled: window.currentScreen !== null && !window.popupOpen
-        onActivated: window.currentScreen.togglePaused()
+        onActivated: {
+            window.currentScreen.togglePaused()
+            ReceiverController.dismissControlHint()
+        }
     }
 
     Shortcut {
         sequence: "R"
         enabled: window.currentScreen !== null && !window.popupOpen
-        onActivated: window.currentScreen.toggleRecording()
+        onActivated: {
+            window.currentScreen.toggleRecording()
+            ReceiverController.dismissControlHint()
+        }
     }
 
     Shortcut {
         sequence: "M"
         enabled: window.currentScreen !== null && window.currentScreen.hasAudio && !window.popupOpen
-        onActivated: ReceiverController.audioScreen = window.currentScreen.audible ? null : window.currentScreen
+        onActivated: {
+            ReceiverController.audioScreen = window.currentScreen.audible ? null : window.currentScreen
+            ReceiverController.dismissControlHint()
+        }
     }
 
     Shortcut {
         sequence: "S"
         enabled: window.currentTile !== null && !window.popupOpen
-        onActivated: window.currentTile.capture()
+        onActivated: {
+            window.currentTile.capture()
+            ReceiverController.dismissControlHint()
+        }
+    }
+
+    Shortcut {
+        sequences: ["+", "="]
+        enabled: window.currentTile !== null && !window.popupOpen
+        onActivated: window.currentTile.zoomIn()
+    }
+
+    Shortcut {
+        sequence: "-"
+        enabled: window.currentTile !== null && !window.popupOpen
+        onActivated: window.currentTile.zoomOut()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+0"
+        enabled: window.currentTile !== null && !window.popupOpen
+        onActivated: window.currentTile.userResetZoom()
     }
 
     Shortcut {

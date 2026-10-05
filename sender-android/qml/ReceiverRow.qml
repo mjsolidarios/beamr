@@ -12,6 +12,10 @@ ItemDelegate {
     property string address
     // Under the name; the address when empty and different from the name.
     property string detail
+    // Recent computers can be removed. Nearby ones come and go on their own.
+    property bool forgettable: false
+
+    signal forgetRequested()
 
     Layout.fillWidth: true
     leftPadding: 16
@@ -70,6 +74,36 @@ ItemDelegate {
                 font.pixelSize: Theme.sp(13)
                 font.family: root.detail.length > 0 ? Qt.application.font.family : Theme.monoFamily
                 elide: Text.ElideRight
+            }
+        }
+
+        // Recent rows: a real control, so forgetting isn't a hidden gesture.
+        // It takes the click so the row doesn't connect as well.
+        ToolButton {
+            id: forgetButton
+
+            visible: root.forgettable
+            text: qsTr("Forget")
+            font.pixelSize: Theme.sp(14)
+            font.weight: Font.DemiBold
+            padding: 0
+            leftPadding: 10
+            rightPadding: 10
+            implicitHeight: Theme.touchTarget
+            Accessible.name: qsTr("Forget %1").arg(root.name)
+            onClicked: root.forgetRequested()
+
+            contentItem: Text {
+                text: forgetButton.text
+                font: forgetButton.font
+                color: Theme.danger
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            background: Rectangle {
+                radius: height / 2
+                color: forgetButton.down ? Theme.pressed : "transparent"
             }
         }
 
