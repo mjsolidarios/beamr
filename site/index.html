@@ -152,7 +152,7 @@
             <li class="feature" data-feature="sound">
               <svg class="feature-icon" aria-hidden="true"><use href="./assets/icons.svg#speaker-high"/></svg>
               <h3>Bring the sound along</h3>
-              <p>Share supported app audio and choose which phone you hear. Your microphone stays out of the mix.</p>
+              <p>Share supported app audio and choose which phone you hear. You can turn sound on while a cast is already running. Your microphone stays out of the mix.</p>
             </li>
           </ol>
           <figure class="stage-wrap">
@@ -177,6 +177,39 @@
       </div>
     </section>
 
+    <section class="live container" aria-labelledby="live-title">
+      <div class="section-head" data-reveal>
+        <h2 id="live-title">Change it while the cast is on.</h2>
+        <p>Picture, sound, and what you share can change without starting over. The computers stay connected.</p>
+      </div>
+      <ul class="live-list">
+        <li data-reveal>
+          <h3>Picture and sound, on this cast</h3>
+          <p>Smooth is full HD at 60 frames a second, Balanced is full HD at 30, and Data saver is 720p at 30. Apply sends that choice to the cast already running.</p>
+        </li>
+        <li data-reveal>
+          <h3>Change what is shared</h3>
+          <p>Switch between the whole screen and one app from the cast card. Android asks again, and the computers stay connected while you choose.</p>
+        </li>
+        <li data-reveal>
+          <h3>A notice that names the computers</h3>
+          <p>The casting notification says who is receiving, whether it is the whole screen or one app, and whether sound is on.</p>
+        </li>
+        <li data-reveal>
+          <h3>Allow it from the panel</h3>
+          <p>A scanned QR code connects directly. Nearby, or a typed address, waits until you tap Allow in the beamr window. If that window is closed, tap the beamr icon on the computer’s panel.</p>
+        </li>
+        <li data-reveal>
+          <h3>When Wi-Fi drops frames</h3>
+          <p>The cast card says so. One tap switches that cast to Data saver.</p>
+        </li>
+        <li data-reveal>
+          <h3>From Quick Settings</h3>
+          <p>After the first cast, Android 13 and later asks once to add the beamr tile. From the tile, cast to your last computer or stop the cast.</p>
+        </li>
+      </ul>
+    </section>
+
     <section class="setup" id="how-it-works" aria-labelledby="setup-title">
       <div class="container setup-grid">
         <div class="setup-head">
@@ -187,8 +220,8 @@
         <ol class="steps">
           <li class="rail" aria-hidden="true"><span class="rail-fill"></span></li>
           <li class="step"><span class="step-dot" aria-hidden="true">1</span><div><h3>Get both apps</h3><p>Install the Android app on your phone and the receiver on your computer. Open beamr on both.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#download-simple"/></svg></li>
-          <li class="step"><span class="step-dot" aria-hidden="true">2</span><div><h3>Make the connection</h3><p>Scan the computer’s QR code from your phone, or choose your computer under Nearby.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#qr-code"/></svg></li>
-          <li class="step"><span class="step-dot" aria-hidden="true">3</span><div><h3>Choose what to share</h3><p>Accept any connection request, then allow Android screen capture. Share your whole screen or a single app when offered.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#broadcast"/></svg></li>
+          <li class="step"><span class="step-dot" aria-hidden="true">2</span><div><h3>Make the connection</h3><p>Scan the computer’s QR code to connect straight away. Nearby, or a typed address, waits until you tap Allow in the beamr window. If that window is closed, tap the beamr icon on the computer’s panel.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#qr-code"/></svg></li>
+          <li class="step"><span class="step-dot" aria-hidden="true">3</span><div><h3>Choose what to share</h3><p>Allow Android screen capture, then share the whole screen or one app. You can change that later, and the computers stay connected.</p></div><svg class="step-icon" aria-hidden="true"><use href="./assets/icons.svg#broadcast"/></svg></li>
         </ol>
       </div>
     </section>
@@ -239,7 +272,7 @@
       <div class="questions">
         <details><summary>Does my screen go through the cloud?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>No. Screen and audio go directly from your phone to the computer on your local network, encrypted with TLS. Scanning the computer’s QR code checks its certificate. beamr has no account and no cloud relay. The <a href="./privacy.html">privacy policy</a> describes what stays on your devices.</p></details>
         <details><summary>Why can’t my phone find my computer?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Check that both devices are on the same Wi-Fi and your firewall allows beamr. Guest networks may prevent devices from connecting to each other. You can also scan the QR code or enter the address shown on the computer.</p></details>
-        <details><summary>Can I share audio from every app?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Turn on Cast sound before you start. Android only lets beamr capture audio from apps that allow it. Calls and protected audio stay silent, and beamr never captures the microphone.</p></details>
+        <details><summary>Can I share audio from every app?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Turn Cast sound on before you start, or apply it while a cast is running. If Android declines, Open settings on the cast card takes you there. Coming back with permission starts the audio on that cast. Android only lets beamr capture audio from apps that allow it. Calls and protected audio stay silent, and beamr never captures the microphone.</p></details>
         <details id="macos-help"><summary>How do I open beamr on macOS?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Open the DMG and copy beamr to Applications. This Apple silicon build is not yet signed. If macOS blocks it, follow <a href="https://support.apple.com/en-us/102445">Apple’s instructions for opening an app from an unidentified developer</a>, after confirming you downloaded it from this repository.</p></details>
         <details><summary>Does beamr work with iPhone or smart TVs?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>beamr currently sends from Android phones to computers running Windows, macOS, or Linux. There’s no iPhone sender or standalone smart TV app. You can connect your computer to a larger display.</p></details>
         <details><summary>Can I build it myself?<svg class="icon" aria-hidden="true"><use href="./assets/icons.svg#plus"/></svg></summary><p>Yes. Both apps are built with Qt 6 and QML. The project is open source under the MIT license, with separately licensed dependencies. Find <a href="https://github.com/mjsolidarios/beamr#building">build instructions</a> and <a href="https://github.com/mjsolidarios/beamr/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a> in the repository.</p></details>
