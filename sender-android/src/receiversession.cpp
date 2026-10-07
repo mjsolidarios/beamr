@@ -23,6 +23,14 @@ constexpr int kRetryIntervalMs = 1'500;
 constexpr int kReconnectAttemptMs = 4'000;
 constexpr int kResumeAnswerMs = 3'000;
 
+// The computer asked, and nobody tapped Allow. The same words wherever it times out.
+QString approvalTimedOut(const QString &name)
+{
+    return QObject::tr("“%1” didn't answer. Tap Allow in the beamr window. If it's closed, "
+                       "tap the beamr icon on the computer's panel.")
+        .arg(name);
+}
+
 } // namespace
 
 ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QString &endpoint,
@@ -48,7 +56,7 @@ ReceiverSession::ReceiverSession(const QString &host, quint16 port, const QStrin
                     .arg(beamr::kDefaultControlPort),
                 true);
         } else if (m_state == AwaitingApproval) {
-            end(tr("“%1” didn't answer. Try again.").arg(m_name), true);
+            end(approvalTimedOut(m_name), true);
         } else if (m_state == Reconnecting) {
             if (m_socket.isEncrypted()) {
                 // It said hello but didn't take us back (it let go of our
@@ -211,9 +219,7 @@ void ReceiverSession::onReadyRead()
             }
             const QString reason = message->value("reason").toString();
             if (reason == QLatin1StringView(protocol::kReasonExpired))
-                end(tr("Nobody answered on “%1” in time. Try again, then allow the request on the computer.")
-                        .arg(m_name),
-                    true);
+                end(approvalTimedOut(m_name), true);
             else if (reason == QLatin1StringView(protocol::kReasonUnsupported))
                 end(tr("“%1” runs a different version of beamr. Update both apps, then try again.").arg(m_name),
                     true);

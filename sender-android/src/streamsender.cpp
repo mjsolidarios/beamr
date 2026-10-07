@@ -26,6 +26,7 @@ constexpr int kKeyFrameRequestIntervalMs = 500;
 StreamSender::StreamSender(QObject *parent)
     : QObject(parent)
 {
+    m_clock.start();
 }
 
 void StreamSender::open(const QString &sessionId, const QString &host, quint16 port, const QString &token,
@@ -110,6 +111,10 @@ void StreamSender::closeAll()
     const QList<QString> ids = m_destinations.keys();
     for (const QString &id : ids)
         close(id);
+    m_dropsInWindow = 0;
+    m_dropWindowStart = -1;
+    m_lastDropMs = 0;
+    clearCongestion();
 }
 
 bool StreamSender::drop(const QString &sessionId)
@@ -140,8 +145,25 @@ void StreamSender::sendFrame(const QByteArray &data, quint8 flags, qint64 ptsUs)
     header.ptsUs = ptsUs;
     const QByteArray headerBytes = header.encode();
 
-    for (Destination &destination : m_destinations)
-        send(destination, headerBytes, data, flags);
+    bool skippedForCongestion = false;
+    bool sentAny = false;
+    for (Destination &destination : m_destinations) {
+        switch (send(destination, headerBytes, data, flags)) {
+        case SendResult::Congested:
+            skippedForCongestion = true;
+            break;
+        case SendResult::Sent:
+            sentAny = true;
+            break;
+        case SendResult::Ignored:
+            break;
+        }
+    }
+    // One count per frame, however many receivers skipped it.
+    if (skippedForCongestion)
+        noteDrop();
+    else if (sentAny)
+        noteSent();
 }
 
 void StreamSender::sendAudio(const QByteArray &data, qint64 ptsUs)
@@ -167,11 +189,12 @@ void StreamSender::sendAudio(const QByteArray &data, qint64 ptsUs)
     }
 }
 
-void StreamSender::send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags)
+StreamSender::SendResult StreamSender::send(Destination &destination, const QByteArray &header, const QByteArray &data,
+                                             quint8 flags)
 {
     QSslSocket *socket = destination.socket;
     if (!destination.ready || !socket->isEncrypted())
-        return;
+        return SendResult::Ignored;
 
     const bool isConfig = flags & protocol::kFrameConfig;
     const bool isKey = flags & protocol::kFrameKey;
@@ -187,7 +210,8 @@ void StreamSender::send(Destination &destination, const QByteArray &header, cons
         if (destination.waitForKeyFrame && (!isKey || congested)) {
             ++destination.droppedFrames;
             requestKeyFrame();
-            return;
+            // Waiting for the first keyframe is normal. Only a backed-up link counts.
+            return congested ? SendResult::Congested : SendResult::Ignored;
         }
         destination.waitForKeyFrame = false;
     }
@@ -195,6 +219,40 @@ void StreamSender::send(Destination &destination, const QByteArray &header, cons
     socket->write(header);
     socket->write(data);
     ++destination.sentFrames;
+    return SendResult::Sent;
+}
+
+void StreamSender::noteDrop()
+{
+    const qint64 now = m_clock.elapsed();
+    m_lastDropMs = now;
+    if (m_dropWindowStart < 0 || now - m_dropWindowStart > 2000) {
+        m_dropWindowStart = now;
+        m_dropsInWindow = 0;
+    }
+    ++m_dropsInWindow;
+    // About half a second of video at 60 fps, sustained, not one busy moment.
+    if (!m_congested && m_dropsInWindow >= 30) {
+        m_congested = true;
+        emit congestionChanged(true);
+    }
+}
+
+void StreamSender::noteSent()
+{
+    if (!m_congested || m_clock.elapsed() - m_lastDropMs <= 3000)
+        return;
+    m_dropsInWindow = 0;
+    m_dropWindowStart = -1;
+    clearCongestion();
+}
+
+void StreamSender::clearCongestion()
+{
+    if (!m_congested)
+        return;
+    m_congested = false;
+    emit congestionChanged(false);
 }
 
 void StreamSender::requestKeyFrame()

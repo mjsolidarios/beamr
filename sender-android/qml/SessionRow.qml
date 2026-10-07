@@ -74,6 +74,9 @@ ItemDelegate {
                 spacing: 6
 
                 Rectangle {
+                    Layout.alignment: root.sessionState === SenderController.AwaitingApproval ? Qt.AlignTop
+                                                                                              : Qt.AlignVCenter
+                    Layout.topMargin: root.sessionState === SenderController.AwaitingApproval ? 5 : 0
                     implicitWidth: 6
                     implicitHeight: 6
                     radius: 3
@@ -93,7 +96,8 @@ ItemDelegate {
                     text: {
                         switch (root.sessionState) {
                         case SenderController.Connecting: return qsTr("Connecting…")
-                        case SenderController.AwaitingApproval: return qsTr("Allow this phone on the computer")
+                        case SenderController.AwaitingApproval:
+                            return qsTr("Tap Allow in the beamr window. If it's closed, tap the beamr icon on the computer's panel.")
                         case SenderController.Reconnecting: return qsTr("Reconnecting…")
                         // The address tells apart computers with the same name.
                         case SenderController.Streaming: return qsTr("Live · %1").arg(root.address)
@@ -102,7 +106,9 @@ ItemDelegate {
                     }
                     color: root.pending || root.streaming ? root.tone : Theme.textMuted
                     font.pixelSize: Theme.sp(13)
-                    elide: Text.ElideRight
+                    wrapMode: root.sessionState === SenderController.AwaitingApproval ? Text.Wrap : Text.NoWrap
+                    maximumLineCount: root.sessionState === SenderController.AwaitingApproval ? 4 : 1
+                    elide: root.sessionState === SenderController.AwaitingApproval ? Text.ElideNone : Text.ElideRight
                 }
             }
         }

@@ -139,11 +139,23 @@ Drawer {
             Label {
                 Layout.fillWidth: true
                 Layout.topMargin: 2
-                visible: SenderController.castState === SenderController.On
-                text: qsTr("Quality and sound changes apply the next time you start casting.")
+                visible: SenderController.castSettingsPending
+                text: qsTr("This cast is still using the previous picture and sound.")
                 color: Theme.textFaint
                 font.pixelSize: Theme.sp(12)
                 wrapMode: Text.Wrap
+            }
+
+            PillButton {
+                Layout.fillWidth: true
+                Layout.topMargin: 12
+                visible: SenderController.castSettingsPending
+                kind: "primary"
+                text: qsTr("Apply to this cast")
+                onClicked: {
+                    SenderController.applyCastSettings()
+                    root.close()
+                }
             }
 
             SectionLabel {

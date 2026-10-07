@@ -37,8 +37,12 @@ signals:
     void opened(const QString &sessionId);
     // Empty error when close() or closeAll() asked for it.
     void closed(const QString &sessionId, const QString &error);
+    // A receiver's connection is skipping frames, or it has caught up.
+    void congestionChanged(bool congested);
 
 private:
+    enum class SendResult { Ignored, Sent, Congested };
+
     struct Destination
     {
         QSslSocket *socket = nullptr;
@@ -53,8 +57,17 @@ private:
     // Tears a connection down quietly; false if there was none.
     bool drop(const QString &sessionId);
     void fail(const QString &sessionId, QSslSocket *socket, const QString &error);
-    void send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags);
+    SendResult send(Destination &destination, const QByteArray &header, const QByteArray &data, quint8 flags);
+    // Counts congestion skips, and says when they amount to a struggling link.
+    void noteDrop();
+    void noteSent();
+    void clearCongestion();
 
     QHash<QString, Destination> m_destinations;
     QElapsedTimer m_sinceKeyFrameRequest;
+    QElapsedTimer m_clock;
+    qint64 m_dropWindowStart = -1;
+    qint64 m_lastDropMs = 0;
+    int m_dropsInWindow = 0;
+    bool m_congested = false;
 };

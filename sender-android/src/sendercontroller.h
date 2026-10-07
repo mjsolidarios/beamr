@@ -57,13 +57,22 @@ class SenderController : public QObject
     Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)
     // For the About page: the Qt this build runs on.
     Q_PROPERTY(QString qtVersion READ qtVersion CONSTANT)
-    // Cast what apps play, too. Takes effect on the next cast.
+    // Cast what apps play, too. A live cast keeps going until Apply.
     Q_PROPERTY(bool shareAudio READ shareAudio WRITE setShareAudio NOTIFY shareAudioChanged)
     // Picture quality for casts: Smooth (1080p60), Balanced (1080p30) or
-    // DataSaver (720p30, for weak Wi-Fi). Takes effect on the next cast.
+    // DataSaver (720p30, for weak Wi-Fi). A live cast keeps going until Apply.
     Q_PROPERTY(Quality quality READ quality WRITE setQuality NOTIFY qualityChanged)
-    // Frames a second for the chosen quality, for showing it.
+    // What the cast in progress is actually using.
+    Q_PROPERTY(Quality castQuality READ castQuality NOTIFY castSettingsChanged)
+    Q_PROPERTY(bool castShareAudio READ castShareAudio NOTIFY castSettingsChanged)
+    // The live cast is still on the previous picture or sound settings.
+    Q_PROPERTY(bool castSettingsPending READ castSettingsPending NOTIFY castSettingsChanged)
+    // Frames a second for the cast in progress, else for the next one.
     Q_PROPERTY(int frameRate READ frameRate NOTIFY qualityChanged)
+    // Wi-Fi is skipping frames. Cleared once the picture catches up.
+    Q_PROPERTY(bool networkStruggling READ networkStruggling NOTIFY networkStrugglingChanged)
+    // Stopping this capture so the system can ask what to share again.
+    Q_PROPERTY(bool changingShare READ changingShare NOTIFY castStateChanged)
     // How sound went for the current cast: on, off, denied, unavailable;
     // empty when not casting.
     Q_PROPERTY(QString audioState READ audioState NOTIFY audioStateChanged)
@@ -102,6 +111,11 @@ public:
     void setOnboardingDone(bool done);
     Quality quality() const { return m_quality; }
     void setQuality(Quality quality);
+    Quality castQuality() const { return m_castQuality; }
+    bool castShareAudio() const { return m_castShareAudio; }
+    bool castSettingsPending() const;
+    bool networkStruggling() const { return m_networkStruggling; }
+    bool changingShare() const { return m_changingShare; }
     // For the cast in progress, else for the next one.
     int frameRate() const { return (m_castState != Off ? m_castQuality : m_quality) == Smooth ? 60 : 30; }
     bool shareAudio() const { return m_shareAudio; }
@@ -145,6 +159,14 @@ public:
     Q_INVOKABLE bool isConnectedTo(const QString &address) const;
     Q_INVOKABLE void startCasting();
     Q_INVOKABLE void stopCasting();
+    // Reconfigures the live cast with the current picture and sound settings.
+    Q_INVOKABLE void applyCastSettings();
+    // Switches to Data saver and applies it when a cast is live.
+    Q_INVOKABLE void useDataSaver();
+    // Stops this capture and asks Android what to share again. Receivers stay.
+    Q_INVOKABLE void changeShareTarget();
+    // Android's page for this app, so a denied audio permission can be allowed.
+    Q_INVOKABLE void openAppSettings();
     Q_INVOKABLE void forgetReceiver(const QString &address);
     // Opens the QR scanner; a receiver's code connects to it.
     Q_INVOKABLE void scanQrCode();
@@ -171,6 +193,8 @@ signals:
     void audioStateChanged();
     void shareTargetChanged();
     void previewRevisionChanged();
+    void castSettingsChanged();
+    void networkStrugglingChanged();
 
 private:
     void setMessage(const QString &message, bool isError, const QString &retryAddress = {});
@@ -186,6 +210,16 @@ private:
     void openVideo(ReceiverSession *session);
     // Stops capture and every video connection; sessions stay up.
     void endCapture();
+    void setChangingShare(bool changing);
+    void pushCastSettings();
+    void updateCastNotification();
+    QString castNotificationTitle() const;
+    QString castNotificationText() const;
+    void maybeOfferTile();
+    // `answered`: the system showed the tile dialog, or the tile was already there.
+    void tilePromptFinished(bool answered);
+    void resumeAudioIfGranted();
+    bool audioPermissionGranted() const;
     void rememberReceiver(const ReceiverSession *session);
     void saveRecent() const;
 
@@ -216,6 +250,14 @@ private:
     bool m_shareAudio = true;
     Quality m_quality = Smooth;
     Quality m_castQuality = Smooth;
+    bool m_castShareAudio = false;
+    bool m_networkStruggling = false;
+    bool m_changingShare = false;
+    bool m_applyingSettings = false;
+    bool m_tilePrompted = false;
+    bool m_tilePromptInFlight = false;
+    QString m_notificationTitle;
+    QString m_notificationText;
     bool m_onboardingDone = false;
     qreal m_fontScale = 1.0;
     QString m_audioState;

@@ -9,7 +9,10 @@ Rectangle {
     id: root
 
     readonly property int castState: SenderController.castState
-    readonly property bool live: castState === SenderController.On
+    // changingShare is the gap between stopping this capture and the new
+    // consent dialog. Treat it as Starting so the card doesn't flash Live.
+    readonly property bool starting: castState === SenderController.Starting || SenderController.changingShare
+    readonly property bool live: castState === SenderController.On && !SenderController.changingShare
     readonly property int receivers: live ? SenderController.streamingCount : SenderController.approvedCount
 
     implicitHeight: content.implicitHeight + 40
@@ -71,7 +74,7 @@ Rectangle {
 
                     Label {
                         text: root.live ? qsTr("Live")
-                            : root.castState === SenderController.Starting ? qsTr("Starting")
+                            : root.starting ? qsTr("Starting")
                             : qsTr("Ready")
                         color: root.live ? Theme.success : Theme.accent
                         font.pixelSize: Theme.sp(12)
@@ -87,7 +90,7 @@ Rectangle {
                           ? qsTr("Reconnecting…")
                         : root.live ? (root.receivers === 1 ? qsTr("Casting to 1 receiver")
                                                             : qsTr("Casting to %1 receivers").arg(root.receivers))
-                        : root.castState === SenderController.Starting ? qsTr("Allow screen sharing")
+                        : root.starting ? qsTr("Allow screen sharing")
                         : root.receivers === 1 ? qsTr("Cast to 1 receiver")
                         : qsTr("Cast to %1 receivers").arg(root.receivers)
                     color: Theme.text
@@ -105,7 +108,7 @@ Rectangle {
                   ? qsTr("That app stays on the computer while it's open. Stop here or from the notification.")
                   : root.live
                     ? qsTr("Switch to any app. Stop here or from the notification.")
-                    : root.castState === SenderController.Starting
+                    : root.starting
                       ? qsTr("In the dialog that opens, share your entire screen or just one app, then allow it.")
                       : qsTr("Your screen shows on every receiver below that allowed this phone.")
             color: Theme.textMuted
@@ -196,29 +199,89 @@ Rectangle {
             visible: root.live && (SenderController.audioState === "denied"
                                    || SenderController.audioState === "unavailable")
             text: SenderController.audioState === "denied"
-                  ? qsTr("No sound: beamr needs permission to record audio. Allow it in Android settings, then cast again.")
+                  ? qsTr("No sound yet. Allow audio for beamr in Android settings. It is only used for what apps play.")
                   : qsTr("This phone can't cast sound, so only the picture is shared.")
             color: Theme.textMuted
             font.pixelSize: Theme.sp(13)
             wrapMode: Text.Wrap
         }
 
-        // Sound is chosen before casting; changing it means asking Android again.
+        PillButton {
+            Layout.fillWidth: true
+            Layout.topMargin: 12
+            visible: root.live && SenderController.audioState === "denied"
+            kind: "secondary"
+            text: qsTr("Open settings")
+            onClicked: SenderController.openAppSettings()
+        }
+
+        // The stream is skipping frames. Data saver is the one step down.
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 14
+            visible: root.live && SenderController.networkStruggling
+            text: SenderController.castQuality === SenderController.DataSaver
+                  ? qsTr("Wi-Fi is dropping frames, so the picture may stutter.")
+                  : qsTr("Wi-Fi is dropping frames.")
+            color: Theme.textMuted
+            font.pixelSize: Theme.sp(13)
+            wrapMode: Text.Wrap
+        }
+
+        PillButton {
+            Layout.fillWidth: true
+            Layout.topMargin: 12
+            visible: root.live && SenderController.networkStruggling
+                     && SenderController.castQuality !== SenderController.DataSaver
+            kind: "secondary"
+            text: qsTr("Use Data saver")
+            onClicked: SenderController.useDataSaver()
+        }
+
+        // Sound is chosen before casting; changing it on a live cast waits for Apply.
         SoundSwitch {
             Layout.fillWidth: true
             Layout.topMargin: 12
             Layout.leftMargin: -6
             Layout.rightMargin: -6
-            visible: !root.live && root.castState !== SenderController.Starting
+            visible: !root.live && !root.starting
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.topMargin: 14
+            visible: SenderController.castSettingsPending
+            text: qsTr("Picture or sound settings changed.")
+            color: Theme.textMuted
+            font.pixelSize: Theme.sp(13)
+            wrapMode: Text.Wrap
+        }
+
+        PillButton {
+            Layout.fillWidth: true
+            Layout.topMargin: 12
+            visible: SenderController.castSettingsPending
+            kind: "secondary"
+            text: qsTr("Apply to this cast")
+            onClicked: SenderController.applyCastSettings()
         }
 
         PillButton {
             Layout.fillWidth: true
             Layout.topMargin: 16
-            visible: root.castState !== SenderController.Starting
+            visible: !root.starting
             kind: root.live ? "danger" : "primary"
             text: root.live ? qsTr("Stop casting") : qsTr("Start casting")
             onClicked: root.live ? SenderController.stopCasting() : SenderController.startCasting()
+        }
+
+        PillButton {
+            Layout.fillWidth: true
+            Layout.topMargin: 10
+            visible: root.live
+            kind: "secondary"
+            text: qsTr("Change what's shared")
+            onClicked: SenderController.changeShareTarget()
         }
     }
 }

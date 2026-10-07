@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(beamr
-    VERSION 0.2.4
+    VERSION 0.2.5
     DESCRIPTION "Low-latency Wi-Fi screen casting"
     LANGUAGES CXX)
 

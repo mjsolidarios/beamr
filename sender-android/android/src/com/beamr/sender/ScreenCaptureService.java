@@ -23,6 +23,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
@@ -42,6 +44,9 @@ public class ScreenCaptureService extends Service {
     static final String EXTRA_AUDIO = "com.beamr.sender.AUDIO";
     // One of the QUALITY_* presets.
     static final String EXTRA_QUALITY = "com.beamr.sender.QUALITY";
+    // First notification, before the capture knows the share target.
+    static final String EXTRA_TITLE = "com.beamr.sender.TITLE";
+    static final String EXTRA_TEXT = "com.beamr.sender.TEXT";
     // Keep in step with SenderController::Quality.
     static final int QUALITY_SMOOTH = 0;
     static final int QUALITY_BALANCED = 1;
@@ -92,6 +97,14 @@ public class ScreenCaptureService extends Service {
     // what is shared.
     private int mPreviewFailures;
     private volatile boolean mPreviewStopped;
+    // The picture being shared, before the preset scales it. Needed to
+    // rebuild the encoder when quality changes mid-cast.
+    private int mContentWidth;
+    private int mContentHeight;
+    private String mTitle = "Casting";
+    private String mText = "Sharing your screen.";
+    private int mSmallIconId;
+    private Bitmap mLargeIcon;
     private static final int PREVIEW_LONG_EDGE = 320;
     private static final int PREVIEW_INTERVAL_MS = 1000;
     private static final int PREVIEW_MAX_FAILURES = 3;
@@ -112,6 +125,13 @@ public class ScreenCaptureService extends Service {
             return START_NOT_STICKY;
         }
 
+        String title = intent.getStringExtra(EXTRA_TITLE);
+        String text = intent.getStringExtra(EXTRA_TEXT);
+        if (title != null && !title.isEmpty())
+            mTitle = title;
+        if (text != null && !text.isEmpty())
+            mText = text;
+
         // Android 14+ requires the foreground service before the projection.
         startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
 
@@ -122,9 +142,49 @@ public class ScreenCaptureService extends Service {
         int resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0);
         Intent data = resultData(intent);
         boolean audio = intent.getBooleanExtra(EXTRA_AUDIO, false);
-        applyQuality(intent.getIntExtra(EXTRA_QUALITY, QUALITY_SMOOTH));
+        setQualityLimits(intent.getIntExtra(EXTRA_QUALITY, QUALITY_SMOOTH));
         mHandler.post(() -> start(resultCode, data, audio));
         return START_NOT_STICKY;
+    }
+
+    // Smooth is the field default. Other presets only override some of it,
+    // so a later change has to put the defaults back first.
+    private void setQualityLimits(int quality) {
+        mMaxLongSide = 1920;
+        mMaxShortSide = 1080;
+        mFrameRate = 60;
+        mBitrateBps = 8_000_000;
+        applyQuality(quality);
+    }
+
+    // Called on the UI thread. The encoder thread does the work.
+    void applySettings(boolean audio, int quality) {
+        Handler handler = mHandler;
+        if (handler == null || mStopped)
+            return;
+        handler.post(() -> applySettingsOnEncoder(audio, quality));
+    }
+
+    void ensureAudio() {
+        Handler handler = mHandler;
+        if (handler == null || mStopped)
+            return;
+        handler.post(() -> {
+            if (!mStopped && mAudio == null)
+                startAudio(true);
+        });
+    }
+
+    void updateNotification(String title, String text) {
+        if (mStopped)
+            return;
+        if (title != null && !title.isEmpty())
+            mTitle = title;
+        if (text != null && !text.isEmpty())
+            mText = text;
+        if (mStopped)
+            return;
+        getSystemService(NotificationManager.class).notify(NOTIFICATION_ID, buildNotification());
     }
 
     private void applyQuality(int quality) {
@@ -193,7 +253,9 @@ public class ScreenCaptureService extends Service {
             }, mHandler);
 
             DisplayMetrics metrics = displayMetrics();
-            startEncoder(metrics.widthPixels, metrics.heightPixels);
+            mContentWidth = metrics.widthPixels;
+            mContentHeight = metrics.heightPixels;
+            startEncoder(mContentWidth, mContentHeight);
             mDisplay = mProjection.createVirtualDisplay("beamr", mWidth, mHeight, metrics.densityDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mSurface, null, mHandler);
             sInstance = this;
@@ -242,22 +304,34 @@ public class ScreenCaptureService extends Service {
     private void resizeTo(int contentWidth, int contentHeight) {
         if (mDisplay == null || mStopped)
             return;
+        mContentWidth = contentWidth;
+        mContentHeight = contentHeight;
         int[] size = encodedSize(contentWidth, contentHeight, null);
         if (size[0] == mWidth && size[1] == mHeight)
             return;
+        recreateEncoder();
+    }
+
+    // New encoder at the current quality. Used when the picture changes size
+    // and when a live cast applies a different frame rate or bitrate.
+    private void recreateEncoder() {
+        if (mDisplay == null || mStopped || mContentWidth <= 0 || mContentHeight <= 0)
+            return;
+        MediaCodec oldCodec;
+        synchronized (mLock) {
+            oldCodec = mCodec;
+        }
+        Surface oldSurface = mSurface;
         try {
-            MediaCodec oldCodec;
-            synchronized (mLock) {
-                oldCodec = mCodec;
-            }
-            Surface oldSurface = mSurface;
-            startEncoder(contentWidth, contentHeight);
+            startEncoder(mContentWidth, mContentHeight);
             mDisplay.resize(mWidth, mHeight, displayMetrics().densityDpi);
             mDisplay.setSurface(mSurface);
             release(oldCodec);
-            oldSurface.release();
-            Log.i(TAG, "resized to " + mWidth + "x" + mHeight);
+            if (oldSurface != null)
+                oldSurface.release();
+            Log.i(TAG, "encoder now " + mWidth + "x" + mHeight + " at " + mFrameRate + " fps");
             CaptureBridge.nativeCaptureStarted(mWidth, mHeight);
+            requestKeyFrame();
             // The old surface is gone. A copy that had given up can try the new one.
             mPreviewFailures = 0;
             if (mPreviewStopped && !mStopped) {
@@ -265,8 +339,43 @@ public class ScreenCaptureService extends Service {
                 schedulePreview();
             }
         } catch (Exception e) {
-            Log.e(TAG, "can't resize capture", e);
+            Log.e(TAG, "can't reconfigure capture", e);
+            MediaCodec current;
+            synchronized (mLock) {
+                current = mCodec;
+            }
             stopCapture(e.getMessage() != null ? e.getMessage() : e.toString());
+            if (oldCodec != null && oldCodec != current)
+                release(oldCodec);
+            if (oldSurface != null && oldSurface != mSurface)
+                oldSurface.release();
+        }
+    }
+
+    private void applySettingsOnEncoder(boolean audio, int quality) {
+        if (mStopped)
+            return;
+        int oldRate = mFrameRate;
+        int oldBitrate = mBitrateBps;
+        int oldLong = mMaxLongSide;
+        int oldShort = mMaxShortSide;
+        setQualityLimits(quality);
+        boolean qualityChanged = oldRate != mFrameRate || oldBitrate != mBitrateBps
+                || oldLong != mMaxLongSide || oldShort != mMaxShortSide;
+        if (qualityChanged)
+            recreateEncoder();
+        if (mStopped)
+            return;
+        boolean hasAudio = mAudio != null;
+        if (audio && !hasAudio) {
+            startAudio(true);
+        } else if (!audio) {
+            // Also clears a denied or unavailable report once sound is turned off.
+            if (hasAudio) {
+                mAudio.stop();
+                mAudio = null;
+            }
+            CaptureBridge.nativeAudioState(CaptureBridge.AUDIO_OFF);
         }
     }
 
@@ -531,13 +640,43 @@ public class ScreenCaptureService extends Service {
         PendingIntent stopIntent = PendingIntent.getService(this, 1,
                 new Intent(this, ScreenCaptureService.class).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE);
 
-        return new Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_menu_share)
-                .setContentTitle("Casting your screen")
-                .setContentText("beamr is sharing this screen with your computer.")
+        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
+                .setSmallIcon(smallIcon())
+                .setContentTitle(mTitle)
+                .setContentText(mText)
                 .setContentIntent(openIntent)
                 .setOngoing(true)
-                .addAction(new Notification.Action.Builder(null, "Stop", stopIntent).build())
-                .build();
+                .setOnlyAlertOnce(true)
+                .setColor(0xFF3EC6E0)
+                .addAction(new Notification.Action.Builder(null, "Stop", stopIntent).build());
+        Bitmap large = largeIcon();
+        if (large != null)
+            builder.setLargeIcon(large);
+        return builder.build();
+    }
+
+    private int smallIcon() {
+        if (mSmallIconId == 0)
+            mSmallIconId = getResources().getIdentifier("ic_tile_cast", "drawable", getPackageName());
+        return mSmallIconId != 0 ? mSmallIconId : android.R.drawable.ic_menu_share;
+    }
+
+    private Bitmap largeIcon() {
+        if (mLargeIcon != null)
+            return mLargeIcon;
+        int id = getResources().getIdentifier("ic_launcher_foreground", "mipmap", getPackageName());
+        if (id == 0)
+            return null;
+        Bitmap foreground = BitmapFactory.decodeResource(getResources(), id);
+        if (foreground == null)
+            return null;
+        // The foreground is a light glyph on transparency. Sit it on the
+        // launcher background so it stays visible on a light notification.
+        Bitmap composed = Bitmap.createBitmap(foreground.getWidth(), foreground.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(composed);
+        canvas.drawColor(0xFF0F1115);
+        canvas.drawBitmap(foreground, 0, 0, null);
+        mLargeIcon = composed;
+        return mLargeIcon;
     }
 }

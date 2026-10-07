@@ -10,6 +10,7 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSslSocket>
+#include <QStringList>
 #include <QStyleHints>
 #include <QSysInfo>
 #include <QTimer>
@@ -21,6 +22,7 @@
 #include <QCoreApplication>
 #include <QJniEnvironment>
 #include <QJniObject>
+#include <QPermissions>
 #endif
 
 #include <beamr/config.h>
@@ -49,6 +51,7 @@ const QString kColorSchemeKey = QStringLiteral("appearance/colorScheme");
 const QString kShareAudioKey = QStringLiteral("cast/shareAudio");
 const QString kQualityKey = QStringLiteral("cast/quality");
 const QString kOnboardingDoneKey = QStringLiteral("onboarding/done");
+const QString kTilePromptedKey = QStringLiteral("tile/prompted");
 
 // The one controller the capture service reports to. QML creates it once.
 SenderController *s_instance = nullptr;
@@ -231,6 +234,7 @@ SenderController::SenderController(QObject *parent)
     m_shareAudio = settings.value(kShareAudioKey, true).toBool();
     m_quality = Quality(std::clamp(settings.value(kQualityKey, int(Smooth)).toInt(), int(Smooth), int(DataSaver)));
     m_onboardingDone = settings.value(kOnboardingDoneKey, false).toBool();
+    m_tilePrompted = settings.value(kTilePromptedKey, false).toBool();
 
     QGuiApplication::styleHints()->setColorScheme(
         Qt::ColorScheme(settings.value(kColorSchemeKey, int(Qt::ColorScheme::Unknown)).toInt()));
@@ -242,6 +246,8 @@ SenderController::SenderController(QObject *parent)
 
     connect(&m_sessions, &SessionModel::countChanged, this, &SenderController::sessionsChanged);
     connect(&m_sessions, &SessionModel::dataChanged, this, &SenderController::sessionsChanged);
+    connect(&m_sessions, &SessionModel::countChanged, this, &SenderController::updateCastNotification);
+    connect(&m_sessions, &SessionModel::dataChanged, this, &SenderController::updateCastNotification);
 
     m_discovery = new DiscoveryClient(this);
     connect(m_discovery, &DiscoveryClient::receiversChanged, this, &SenderController::nearbyReceiversChanged);
@@ -253,6 +259,15 @@ SenderController::SenderController(QObject *parent)
     connect(&m_streamThread, &QThread::finished, m_stream, &QObject::deleteLater);
     connect(m_stream, &StreamSender::opened, this, &SenderController::videoOpened);
     connect(m_stream, &StreamSender::closed, this, &SenderController::videoClosed);
+    connect(m_stream, &StreamSender::congestionChanged, this, [this](bool congested) {
+        // A late report from the cast we just stopped is about that cast.
+        if (m_castState != On)
+            congested = false;
+        if (congested == m_networkStruggling)
+            return;
+        m_networkStruggling = congested;
+        emit networkStrugglingChanged();
+    });
     m_streamThread.setObjectName(QStringLiteral("beamr-stream"));
     m_streamThread.start();
 
@@ -272,8 +287,10 @@ SenderController::SenderController(QObject *parent)
     // background; pick it up when it comes back.
     refreshFontScale();
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
-        if (state == Qt::ApplicationActive)
-            refreshFontScale();
+        if (state != Qt::ApplicationActive)
+            return;
+        refreshFontScale();
+        resumeAudioIfGranted();
     });
     // The Quick Settings tile may have started the app.
     if (QJniObject::callStaticMethod<jboolean>("com/beamr/sender/CaptureBridge", "takePendingQuickCast"))
@@ -526,12 +543,19 @@ void SenderController::startCasting()
 #ifdef Q_OS_ANDROID
     clearMessage();
     m_castQuality = m_quality;
+    m_castShareAudio = m_shareAudio;
     setCastState(Starting);
     emit qualityChanged(); // frameRate now follows this cast
+    emit castSettingsChanged();
+    m_notificationTitle = castNotificationTitle();
+    m_notificationText = castNotificationText();
+    const QJniObject title = QJniObject::fromString(m_notificationTitle);
+    const QJniObject text = QJniObject::fromString(m_notificationText);
     QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "requestCapture",
-                                       "(Landroid/content/Context;ZI)V",
+                                       "(Landroid/content/Context;ZILjava/lang/String;Ljava/lang/String;)V",
                                        QNativeInterface::QAndroidApplication::context().object(),
-                                       jboolean(m_shareAudio), jint(m_quality));
+                                       jboolean(m_shareAudio), jint(m_quality), title.object<jstring>(),
+                                       text.object<jstring>());
 #else
     setMessage(tr("Screen casting needs the Android app."), true);
 #endif
@@ -539,7 +563,65 @@ void SenderController::startCasting()
 
 void SenderController::stopCasting()
 {
+    setChangingShare(false);
     endCapture();
+}
+
+void SenderController::applyCastSettings()
+{
+    if (m_castState != On || m_changingShare || m_applyingSettings || !castSettingsPending())
+        return;
+#ifdef Q_OS_ANDROID
+    // Sound was just turned on for this cast, and Android has not said yes yet.
+    // A quality change must not ask again after a denial; Open settings does that.
+    const bool turningSoundOn = m_shareAudio && !m_castShareAudio;
+    const bool needPermission = turningSoundOn && !audioPermissionGranted()
+                                && m_audioState != QLatin1String("unavailable");
+    if (needPermission) {
+        m_applyingSettings = true;
+        qApp->requestPermission(QMicrophonePermission{}, this, [this](const QPermission &) {
+            m_applyingSettings = false;
+            if (m_castState != On || m_changingShare)
+                return;
+            pushCastSettings();
+        });
+        return;
+    }
+    pushCastSettings();
+#else
+    m_castQuality = m_quality;
+    m_castShareAudio = m_shareAudio;
+    emit qualityChanged();
+    emit castSettingsChanged();
+#endif
+}
+
+void SenderController::useDataSaver()
+{
+    setQuality(DataSaver);
+    if (m_castState == On)
+        applyCastSettings();
+}
+
+void SenderController::changeShareTarget()
+{
+    if (m_castState != On || m_changingShare || approvedCount() == 0)
+        return;
+    setChangingShare(true);
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "stopCapture");
+#else
+    setChangingShare(false);
+#endif
+}
+
+void SenderController::openAppSettings()
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "openAppSettings",
+                                       "(Landroid/content/Context;)V",
+                                       QNativeInterface::QAndroidApplication::context().object());
+#endif
 }
 
 void SenderController::endCapture()
@@ -554,6 +636,12 @@ void SenderController::endCapture()
     setCastState(Off);
     setAudioState({});
     clearSharePreview();
+    m_notificationTitle.clear();
+    m_notificationText.clear();
+    if (m_networkStruggling) {
+        m_networkStruggling = false;
+        emit networkStrugglingChanged();
+    }
     if (m_castSize.isValid()) {
         m_castSize = {};
         emit castSizeChanged();
@@ -584,7 +672,16 @@ void SenderController::captureStarted(QSize size)
             if (session->state() == ReceiverSession::Ready)
                 openVideo(session);
         }
+        // The consent dialog just closed. Let Live show, then offer the tile once.
+        QTimer::singleShot(1200, this, [this] {
+            if (m_castState == On && !m_applyingSettings)
+                maybeOfferTile();
+        });
     }
+    // Settings changed while the consent dialog was up.
+    if (castSettingsPending())
+        applyCastSettings();
+    updateCastNotification();
 }
 
 void SenderController::setAudioState(const QString &state)
@@ -593,6 +690,7 @@ void SenderController::setAudioState(const QString &state)
         return;
     m_audioState = state;
     emit audioStateChanged();
+    updateCastNotification();
 }
 
 void SenderController::installPreviewProvider(QQmlEngine *engine)
@@ -613,6 +711,7 @@ void SenderController::setShareTarget(const QString &target)
         return;
     m_shareTarget = target;
     emit shareTargetChanged();
+    updateCastNotification();
 }
 
 void SenderController::setPreview(const QByteArray &jpeg)
@@ -657,6 +756,7 @@ void SenderController::setQuality(Quality quality)
     m_quality = quality;
     QSettings().setValue(kQualityKey, int(quality));
     emit qualityChanged();
+    emit castSettingsChanged();
 }
 
 void SenderController::setShareAudio(bool share)
@@ -666,15 +766,24 @@ void SenderController::setShareAudio(bool share)
     m_shareAudio = share;
     QSettings().setValue(kShareAudioKey, share);
     emit shareAudioChanged();
+    emit castSettingsChanged();
 }
 
 void SenderController::captureStopped(const QString &reason)
 {
+    const bool recapture = m_changingShare;
+    setChangingShare(false);
     const bool wasCasting = m_castState != Off;
     m_captureRunning = false;
     if (!wasCasting)
         return;
     endCapture();
+
+    // The old capture is gone. Ask what to share, and keep the receivers.
+    if (recapture && reason.isEmpty() && approvedCount() > 0) {
+        startCasting();
+        return;
+    }
 
     if (reason == QLatin1StringView("denied")) {
         setMessage(tr("Screen sharing wasn't allowed. Tap Start casting to try again."), false);
@@ -834,6 +943,138 @@ void SenderController::setCastState(CastState state)
         return;
     m_castState = state;
     emit castStateChanged();
+    emit castSettingsChanged();
+}
+
+bool SenderController::castSettingsPending() const
+{
+    return m_castState == On && !m_changingShare && (m_quality != m_castQuality || m_shareAudio != m_castShareAudio);
+}
+
+void SenderController::setChangingShare(bool changing)
+{
+    if (changing == m_changingShare)
+        return;
+    m_changingShare = changing;
+    emit castStateChanged();
+    emit castSettingsChanged();
+}
+
+void SenderController::pushCastSettings()
+{
+#ifdef Q_OS_ANDROID
+    const bool applied = QJniObject::callStaticMethod<jboolean>(
+        "com/beamr/sender/CaptureBridge", "applySettings", "(ZI)Z", jboolean(m_shareAudio), jint(m_quality));
+    if (!applied)
+        return;
+#endif
+    const bool rateChanged = m_castQuality != m_quality;
+    m_castQuality = m_quality;
+    m_castShareAudio = m_shareAudio;
+    if (rateChanged)
+        emit qualityChanged();
+    emit castSettingsChanged();
+    updateCastNotification();
+}
+
+void SenderController::updateCastNotification()
+{
+#ifdef Q_OS_ANDROID
+    if (m_castState != On)
+        return;
+    const QString title = castNotificationTitle();
+    const QString text = castNotificationText();
+    if (title == m_notificationTitle && text == m_notificationText)
+        return;
+    m_notificationTitle = title;
+    m_notificationText = text;
+    const QJniObject jTitle = QJniObject::fromString(title);
+    const QJniObject jText = QJniObject::fromString(text);
+    QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "updateNotification",
+                                       "(Ljava/lang/String;Ljava/lang/String;)V", jTitle.object<jstring>(),
+                                       jText.object<jstring>());
+#endif
+}
+
+QString SenderController::castNotificationTitle() const
+{
+    QStringList names;
+    int reconnecting = 0;
+    int streaming = 0;
+    for (const ReceiverSession *session : m_sessions.sessions()) {
+        if (!session->isApproved())
+            continue;
+        names.append(session->name());
+        if (session->state() == ReceiverSession::Reconnecting)
+            ++reconnecting;
+        else if (session->state() == ReceiverSession::Streaming)
+            ++streaming;
+    }
+    const bool quiet = streaming == 0 && reconnecting > 0;
+    if (names.isEmpty())
+        return quiet ? tr("Reconnecting…") : tr("Casting");
+    if (names.size() == 1)
+        return quiet ? tr("Reconnecting to %1").arg(names.at(0)) : tr("Casting to %1").arg(names.at(0));
+    if (quiet)
+        return tr("Reconnecting…");
+    if (names.size() == 2)
+        return tr("Casting to %1 and %2").arg(names.at(0), names.at(1));
+    return tr("Casting to %1 computers").arg(names.size());
+}
+
+QString SenderController::castNotificationText() const
+{
+    const QString picture = m_shareTarget == QLatin1String("app") ? tr("One app")
+                            : m_shareTarget == QLatin1String("screen") ? tr("Entire screen")
+                                                                       : tr("Your screen");
+    const QString sound = m_audioState == QLatin1String("on")                    ? tr("with sound")
+                          : m_audioState == QLatin1String("denied")              ? tr("sound needs permission")
+                          : m_audioState == QLatin1String("unavailable") || !m_castShareAudio ? tr("picture only")
+                                                                                              : tr("with sound");
+    return tr("%1 · %2").arg(picture, sound);
+}
+
+void SenderController::maybeOfferTile()
+{
+    if (m_tilePrompted || m_tilePromptInFlight || m_castState != On)
+        return;
+#ifdef Q_OS_ANDROID
+    // 1: dialog requested. 0: this Android has none. -1: try again next cast.
+    const int result = QJniObject::callStaticMethod<jint>(
+        "com/beamr/sender/CaptureBridge", "requestTile", "(Landroid/content/Context;)I",
+        QNativeInterface::QAndroidApplication::context().object());
+    if (result == 0)
+        tilePromptFinished(true);
+    else if (result > 0)
+        m_tilePromptInFlight = true;
+#endif
+}
+
+void SenderController::tilePromptFinished(bool answered)
+{
+    m_tilePromptInFlight = false;
+    if (!answered || m_tilePrompted)
+        return;
+    m_tilePrompted = true;
+    QSettings().setValue(kTilePromptedKey, true);
+}
+
+void SenderController::resumeAudioIfGranted()
+{
+#ifdef Q_OS_ANDROID
+    if (m_castState != On || !m_shareAudio || m_audioState != QLatin1String("denied") || !audioPermissionGranted())
+        return;
+    QJniObject::callStaticMethod<void>("com/beamr/sender/CaptureBridge", "startCastAudio");
+#endif
+}
+
+bool SenderController::audioPermissionGranted() const
+{
+#ifdef Q_OS_ANDROID
+    return qApp->checkPermission(QMicrophonePermission{}) == Qt::PermissionStatus::Granted;
+#else
+    return false;
+#endif
 }
 
 void SenderController::rememberReceiver(const ReceiverSession *session)
@@ -931,6 +1172,15 @@ struct CaptureNatives
         });
     }
 
+    static void tilePrompted(JNIEnv *, jclass, jboolean answered)
+    {
+        const bool accepted = answered;
+        QMetaObject::invokeMethod(qApp, [accepted] {
+            if (s_instance)
+                s_instance->tilePromptFinished(accepted);
+        });
+    }
+
     static void audioState(JNIEnv *, jclass, jstring state)
     {
         const QString text = QJniObject(state).toString();
@@ -1001,6 +1251,7 @@ void registerCaptureNatives()
             {"nativeFrame", "(Ljava/nio/ByteBuffer;IIJI)V", reinterpret_cast<void *>(&CaptureNatives::frame)},
             {"nativeAudio", "(Ljava/nio/ByteBuffer;IIJ)V", reinterpret_cast<void *>(&CaptureNatives::audio)},
             {"nativeAudioState", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::audioState)},
+            {"nativeTilePrompted", "(Z)V", reinterpret_cast<void *>(&CaptureNatives::tilePrompted)},
             {"nativeQuickCast", "()V", reinterpret_cast<void *>(&CaptureNatives::quickCast)},
             {"nativeShareTarget", "(Ljava/lang/String;)V", reinterpret_cast<void *>(&CaptureNatives::shareTarget)},
             {"nativePreview", "([B)V", reinterpret_cast<void *>(&CaptureNatives::preview)},

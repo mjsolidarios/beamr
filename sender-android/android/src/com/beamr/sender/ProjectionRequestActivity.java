@@ -66,7 +66,9 @@ public class ProjectionRequestActivity extends Activity {
                     .putExtra(ScreenCaptureService.EXTRA_AUDIO, mAudio)
                     .putExtra(ScreenCaptureService.EXTRA_QUALITY,
                             getIntent().getIntExtra(ScreenCaptureService.EXTRA_QUALITY,
-                                    ScreenCaptureService.QUALITY_SMOOTH));
+                                    ScreenCaptureService.QUALITY_SMOOTH))
+                    .putExtra(ScreenCaptureService.EXTRA_TITLE, getIntent().getStringExtra(ScreenCaptureService.EXTRA_TITLE))
+                    .putExtra(ScreenCaptureService.EXTRA_TEXT, getIntent().getStringExtra(ScreenCaptureService.EXTRA_TEXT));
             startForegroundService(service);
         } else {
             CaptureBridge.nativeCaptureStopped(CaptureBridge.DENIED);
